@@ -1,0 +1,71 @@
+{
+  "name": "media-controller",
+  "productName": "media-controller",
+  "version": "1.0.0",
+  "description": "My Electron application description",
+  "main": "src/main/index.ts",
+  "scripts": {
+    "start": "gulp && electron-forge start",
+    "package": "gulp && electron-forge package",
+    "make": "gulp && electron-forge make",
+    "publish": "gulp && electron-forge publish",
+    "lint": "gulp && tslint --project tsconfig.json --type-check --force"
+  },
+  "keywords": [],
+  "author": "fabianpieringer",
+  "license": "MIT",
+  "config": {
+    "forge": {
+      "make_targets": {
+        "win32": [
+          "squirrel"
+        ],
+        "darwin": [
+          "zip"
+        ],
+        "linux": [
+          "deb",
+          "rpm"
+        ]
+      },
+      "electronPackagerConfig": {
+        "packageManager": "yarn"
+      },
+      "electronWinstallerConfig": {
+        "name": "media_controller"
+      },
+      "electronInstallerDebian": {},
+      "electronInstallerRedhat": {},
+      "github_repository": {
+        "owner": "",
+        "name": ""
+      },
+      "windowsStoreConfig": {
+        "packageName": "",
+        "name": "mediacontroller"
+      }
+    }
+  },
+  "dependencies": {
+    "electron-media-service": "^0.2.2",
+    "electron-compile": "^6.4.2"
+  },
+  "devDependencies": {
+    "@types/electron": "^1.4.30",
+    "@types/electron-devtools-installer": "^2.0.2",
+    "electron-devtools-installer": "^2.0.1",
+    "electron-squirrel-startup": "^1.0.0",
+    "tslib": "^1.4.0",
+    "babel-plugin-transform-async-to-generator": "^6.24.1",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-react": "^6.24.1",
+    "electron-forge": "^4.1.6",
+    "electron-prebuilt-compile": "1.8.2-beta.3",
+    "typescript": "~2.2.2",
+    "auto-import": "git+https://github.com/pierback/auto-import.git",
+    "electron": "1.7.9",
+    "run-sequence": "^2.1.0",
+    "gulp": "^3.9.1",
+    "tslint": "^5.8.0"
+  }
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../css/photon.min.css">
+  <link rel="stylesheet" href="../css/preferences.css">
+  <title>MediaController</title>
+</head>
+
+
+<body>
+  <div class="head">
+    <h4>Preferences</h4>
+  </div>
+  <form class="rdform">
+    <div class="head">
+      <h5>Select your default player: </h5>
+    </div>
+    <div class="radio Aligner-item" onclick="check(this.value)">
+      <label>
+        <input type="radio" name="radios" value="iTunes" class="radiobtn" checked onchange="check(this.value)"> iTunes
+      </label>
+    </div>
+    <div class="radio Aligner-item" onclick="check(this.value)">
+      <label>
+        <input type="radio" name="radios" value="Spotify" class="radiobtn" onchange="check(this.value)"> Spotify
+      </label>
+    </div>
+    <div class="radio Aligner-item" onclick="check(this.value)">
+      <label>
+        <input type="radio" name="radios" value="GooglePlay" class="radiobtn" onchange="check(this.value)"> Google Music Desktop
+      </label>
+    </div>
+    <div class="radio Aligner-item" onclick="check(this.value)">
+      <label>
+        <input type="radio" name="radios" value="Chrome" class="radiobtn" onchange="check(this.value)"> Chrome
+      </label>
+    </div>
+  </form>
+</body>
+
+<script>
+  require('../renderer/index.ts')
+</script>
+
+</html>

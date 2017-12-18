@@ -5,20 +5,20 @@ on handlerTab(argv)
 		set json_path to file "json.scpt" of folder of (path to me)
 	end tell
 	set json to load script (json_path as alias)
-	if get running of application "Google Chrome" is true
-	tell application "Google Chrome"
-		set activeTab to active tab of first window
-		tell activeTab to set activeTabUrl to URL
-		
-		repeat with w in windows -- loop for each window, w is a variable which contain the window object
-			repeat with t in tabs of w
-				tell t to set actUrl to URL
-				if argv is in actUrl then
-					set handleTab to true
-				end if
+	if get running of application "Google Chrome" is true then
+		tell application "Google Chrome"
+			set activeTab to active tab of first window
+			tell activeTab to set activeTabUrl to URL
+			
+			repeat with w in windows -- loop for each window, w is a variable which contain the window object
+				repeat with t in tabs of w
+					tell t to set actUrl to URL
+					if argv is in actUrl then
+						set handleTab to true
+					end if
+				end repeat
 			end repeat
-		end repeat
-	end tell
+		end tell
 	end if
 	
 	set playingObj to json's createDictWith({{"handletab", handleTab}})
@@ -26,26 +26,26 @@ on handlerTab(argv)
 end handlerTab
 
 on spotifyHandler(actionTab, playerAction, hturl, aturl)
-if get running of application "Spotify" is false then
-	tell application "Google Chrome"
-		if hturl is in aturl then
-			if playerAction is "play" then
-				execute actionTab javascript "document.querySelector('.spoticon-play-16').click()"
-			else if playerAction is "next" then
-				execute actionTab javascript "document.querySelector('.spoticon-skip-forward-16').click()"
-			else if playerAction is "previous" then
-				execute actionTab javascript "document.querySelector('.spoticon-skip-back-16').click()"
-			end if
-		else
-			if playerAction is "pause" then
-				set playing to execute actionTab javascript "document.querySelector('.spoticon-pause-16')"
-				if playing is equal to {} then
-					execute actionTab javascript "document.querySelector('.spoticon-pause-16').click()"
+	if get running of application "Spotify" is false then
+		tell application "Google Chrome"
+			if hturl is in aturl then
+				if playerAction is "play" then
+					execute actionTab javascript "document.querySelector('.spoticon-play-16').click()"
+				else if playerAction is "next" then
+					execute actionTab javascript "document.querySelector('.spoticon-skip-forward-16').click()"
+				else if playerAction is "previous" then
+					execute actionTab javascript "document.querySelector('.spoticon-skip-back-16').click()"
+				end if
+			else
+				if playerAction is "pause" then
+					set playing to execute actionTab javascript "document.querySelector('.spoticon-pause-16')"
+					if playing is equal to {} then
+						execute actionTab javascript "document.querySelector('.spoticon-pause-16').click()"
+					end if
 				end if
 			end if
-		end if
-	end tell
-end if
+		end tell
+	end if
 end spotifyHandler
 
 
@@ -173,10 +173,10 @@ on daznHandler(actionTab, playerAction, hturl, aturl)
 			end if
 		else
 			if playerAction is "pause" then
-				set playing to execute actionTab javascript "document.querySelector('.iconfont-ls_icon_pause')"
-				if playing is equal to {} then
-					execute actionTab javascript "document.querySelector('.iconfont-ls_icon_pause').click()"
+				set playing to execute actionTab javascript "!document.querySelector('video').paused"
+				if playing is true then
 				end if
+				execute actionTab javascript "document.querySelector('video').pause()"
 			end if
 		end if
 	end tell
@@ -220,14 +220,15 @@ on soundcloudHandler(actionTab, playerAction, hturl, aturl)
 				--if get running of application "Spotify" is false then
 				if playing is equal to true then
 					execute actionTab javascript "document.querySelectorAll('.playControl')[0].click()"
-				--end if
-				end if 
+					--end if
+					
+				end if
 			end if
 		end if
 	end tell
 end soundcloudHandler
 
-on tabDetection(handleTabUrl, action)
+on tabDetection(handleTabUrl, tabId, action)
 	set wbs to {"soundcloud.com", "www.youtube.com", "www.dazn.com", "www.netflix.com", "www.beatport.com", "be-at.tv", "www.skygo.sky.de", "www.instagram.com", "www.facebook.com", "open.spotify.com"}
 	set activeTabUrl to ""
 	set actUrl to ""
@@ -235,6 +236,7 @@ on tabDetection(handleTabUrl, action)
 	tell application "Google Chrome"
 		set activeTab to active tab of window 1
 		tell activeTab to set activeTabUrl to URL
+		
 		repeat with w in windows -- loop for each window, w is a variable which contain the window object
 			repeat with t in tabs of w
 				tell t to set actUrl to URL
@@ -280,10 +282,12 @@ on run (input)
 		set lastActiveApp to lastActiveApp & " " & item 5 of input
 	end try
 	
+
+	
 	set actionSet to {"play", "pause", "next", "previous"}
 	
 	if actionSet contains action then
-		my tabDetection(handleTab, action)
+		my tabDetection(handleTab, lastActiveApp, action)
 	else if action is "activate" then
 		return activateInstance(handleTab, lastActiveApp)
 	else if action is "handlertab" then

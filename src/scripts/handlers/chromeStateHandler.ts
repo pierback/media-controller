@@ -70,8 +70,8 @@ export class ChromeStateHandler implements HandlerInterface {
     checkPlaystate() {
         try {
             Chrome.Playing.on((data: Player | any) => {
-                this.IsPlaying = data.attr.playing;
-                this.Event.emit('playing', { name: `${this.Name}:${data.name}`, state: data.attr.playing, _dualP: false });
+                this.IsPlaying = data.playing;
+                this.Event.emit('playing', { name: `${this.Name}:${data.id}`, title: data.title, state: data.playing, _dualP: false });
             });
         } catch (e) {
             console.log(e);
@@ -80,15 +80,15 @@ export class ChromeStateHandler implements HandlerInterface {
         try {
             Chrome.Running.on((data: any) => {
                 this.IsRunning = utility.convertToRunningType(data.isRunning);
-                this.Event.emit('running', { name: `${this.Name}:${data.name}`, running: data.isRunning, _dualP: false });
+                this.Event.emit('running', { name: `${this.Name}:${data.id}`, running: data.isRunning, _dualP: false });
             });
         } catch (e) {
             console.log(e);
         }
     }
 
-    activate() {
-        Chrome.activate();
+    activate(playerName: string) {
+        Chrome.activate(playerName);
     }
 
     pause() {

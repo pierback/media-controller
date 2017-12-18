@@ -121,7 +121,7 @@ export module utility {
         return p;
     }
 
-    export function extractPlayerName(fullName: string): string {
+    export function extractAppName(fullName: string): string {
         try {
             if (fullName == null || fullName == 'undefined') {
                 return 'none';
@@ -134,6 +134,17 @@ export module utility {
             return 'none';
         }
 
+    }
+
+    export function safelyParseJSON(json: any) {
+        let parsed;
+        try {
+            let dataStr = json.toString() || 'null';
+            parsed = JSON.parse(dataStr);
+        } catch (e) {
+            parsed = 'NULL';
+        }
+        return parsed;
     }
 
     export function ActiveApp(): string {

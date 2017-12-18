@@ -8,7 +8,7 @@ let block = false,
     count = 0;
 
 process.on('message', (msg) => {
-    // setTitle(msg);
+    //setTitle(msg);
     const tm = timeoutHandler();
     execCMD(msg, tm);
 });
@@ -26,6 +26,7 @@ function exitHandler(options, err) {
 }
 
 function setTitle(msg) {
+    console.log('init')
     if (msg.hasOwnProperty('title')) {
         process.title = msg.title;
     }
@@ -55,18 +56,20 @@ function execCMD(msg, tm) {
             if (error) {
                 console.log(`exec error: ${error}`);
                 clearTimeout(tm);
-                process.send('error');
+                let msg = { error: 'error' };
+                process.send(msg);
                 return;
             }
 
             try {
                 let parsedJSON = safelyParseJSON(stdout);
                 clearTimeout(tm);
-                procData = parsedJSON;
                 process.send(parsedJSON)
+                procData = parsedJSON;
             } catch (error) {
                 clearTimeout(tm);
-                process.send(prevData || 'error')
+                let msg = { error: 'error' };
+                process.send(prevData || msg);
             }
         });
     } else {

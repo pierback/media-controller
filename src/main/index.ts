@@ -3,10 +3,16 @@ import { app, Menu, Tray, nativeImage, BrowserWindow, MenuItem } from 'electron'
 import * as electron from 'electron';
 import { EventEmitter } from 'events';
 import { MediaKeyHandler } from '../scripts/mediaKeyHandler';
+import { Player, PlayerMessage, PlayerAttributes, PlayerType } from '../scripts/utility/js/interfaces';
+
+interface MenuItemAttr {
+  title: string;
+  state: boolean;
+}
 
 //@ts-ignore
 let mainWindow: Electron.BrowserWindow;
-let activePlayers: Map<string, boolean> = new Map<string, boolean>();
+let activePlayers: Map<string, MenuItemAttr> = new Map<string, MenuItemAttr>();
 const mkh = new MediaKeyHandler(EventEmitter);
 let tray: Electron.Tray;
 
@@ -22,18 +28,16 @@ function createWindow() {
   return window;
 }
 
-mkh.Event.on('update', (str: string, _plState: boolean) => {
-  if (!_plState) {
-    activePlayers.delete(str);
-    updateMenuBar('');
-  } else {
-    updateMenuBar(str);
-  }
-  createTrayIcon();
+function PlayersMap(): Map<string, [Date, PlayerAttributes]> {
+  return mkh.getPlayersMap();
+}
 
+mkh.Event.on('update', () => {
+  createTrayIcon();
+  //updateMenuBar();
 });
 
-function updateMenuBar(str: string) {
+function updateMenuBar() {
   const separator: Electron.MenuItemConstructorOptions = { type: 'separator' };
   const prefs: Electron.MenuItemConstructorOptions = {
     label: 'Preferences', click: () => {
@@ -46,14 +50,24 @@ function updateMenuBar(str: string) {
     }
   };
 
-  setActivePlayers(str);
+  //setActivePlayers();
   let contextMenu = new Menu();
   if (contextMenu) {
-    for (let ap of activePlayers.keys()) {
+    //console.log('playersmap ', PlayersMap());
+    for (let ap of PlayersMap().keys()) {
+      //@ts-ignore
+
+      let itemAttr: [Date, PlayerAttributes] = PlayersMap().get(ap);
+
+      let curPlayer = ap === mkh.CurrentPlayer.name;
+
       let newItem: Electron.MenuItemConstructorOptions = {
-        label: ap, checked: activePlayers.get(ap), type: 'radio', click: () => {
-          mkh.changePlayer(ap);
-          setTimeout(() => mkh.activate(), 200);
+        label: itemAttr[1].title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {
+          for (let item of contextMenu.items) {
+            item.checked = false;
+          }
+          menuItem.checked = true;
+          mkh.changePlayer(ap, itemAttr[1].title);
         }
       };
       let menuIt = new MenuItem(newItem);
@@ -71,26 +85,30 @@ function updateMenuBar(str: string) {
     let _quit = new MenuItem(quit);
     contextMenu.append(_quit);
 
-    for (let item of contextMenu.items) {
-      if (item.label === mkh.CurrentPlayer.name.split(':').shift()) {
+    /* for (let item of contextMenu.items) {
+      if (item.label === mkh.CurrentPlayer.name.split(':').pop()) {
         item.checked = true;
       }
-    }
+    } */
   }
   tray.setContextMenu(contextMenu);
 }
 
-function setActivePlayers(newPl: string) {
-  if (newPl) {
-    activePlayers.set(newPl, true);
+/* function setActivePlayers(name: string, title: string, _plState: boolean) {
+  if (name) {
+    activePlayers.set(name, { title: title, state: _plState });
+    console.log(activePlayers);
     for (let ap of activePlayers.keys()) {
-      if (ap !== newPl) {
-        activePlayers.set(ap, false);
+      let tmp = activePlayers.get(ap);
+      if (ap !== name && ap !== '') {
+        //@ts-ignore
+        activePlayers.set(ap, { title: tmp.title, state: false });
+
       }
     }
   }
 }
-
+ */
 function createTrayIcon(_state?: any) {
   if (process.platform === 'darwin') { app.dock.hide(); }
   let image = null;
@@ -108,8 +126,6 @@ function createTrayIcon(_state?: any) {
   if (!tray) {
     tray = new Tray(image);
   } else {
-    //tray.destroy();
-    //setTimeout((image) => tray = new Tray(image), 100);
     tray.setImage(image); //
   }
   tray.on('right-click', function () {
@@ -120,7 +136,7 @@ function createTrayIcon(_state?: any) {
     createWindow();
   } else {
     let temp: string = mkh.Store.get('player');
-    updateMenuBar(temp);
+    updateMenuBar();
   }
 }
 

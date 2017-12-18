@@ -11,7 +11,7 @@ const myService = new MediaService();
 const handlerListener = new EventEmitter();
 
 let handlers: Array<any> = [];
-let playersMap: Map<string, PlayerAttributes> = new Map<string, PlayerAttributes>();
+let playersMap: Map<string, [Date, PlayerAttributes]> = new Map<string, [Date, PlayerAttributes]>();
 
 export class MediaKeyHandler {
     protected _store: Store;
@@ -73,18 +73,20 @@ export class MediaKeyHandler {
     }
 
     get CurrentPlayer(): Player {
-        let lastEntry: Player = {
-            name: ' ', attr: { playing: false, dualP: false }
+        let curPl: Player = {
+            name: '', attr: { title: '', playing: false, dualP: false }
         };
-        let tempPA: any;
-
-        for (let lastKey of playersMap.keys()) {
-            tempPA = playersMap.get(lastKey);
-            lastEntry.name = lastKey;
-            lastEntry.attr.playing = tempPA.playing;
-            lastEntry.attr.dualP = tempPA.dualP;
-        }
-        return lastEntry;
+        let maxDate: Date;
+        playersMap.forEach((val, key) => {
+            if (maxDate == null || val[0] > maxDate) {
+                maxDate = val[0];
+                let attr = val[1];
+                curPl = {
+                    name: key, attr: { title: attr.title, playing: attr.playing, dualP: false }
+                };
+            }
+        });
+        return curPl;
     }
 
     set DualPlayer(pl: Player) {
@@ -96,24 +98,11 @@ export class MediaKeyHandler {
     }
 
     set CurrentPlayer(_player: Player) {
-        //player has to be defined
         if (_player.name != null) {
-            //player is a dualPlayer
-            //console.log('dualPlayer in set ', this.CurrentPlayer === _player);
-            //player is no dualPlayer
-            //new player is introduced --> no play/pause switch
-            if (this.CurrentPlayer.name !== _player.name) {
-                //player is already in playerList
-                if (_player.attr.playing && playersMap.has(_player.name)) {
-                    playersMap.delete(_player.name);
-                }
-            }
-            //console.log('no dp in set ', _player);
-            playersMap.set(_player.name, { playing: _player.attr.playing, dualP: _player.attr.dualP });
-
+            playersMap.set(_player.name, [new Date(), { title: _player.attr.title, playing: _player.attr.playing, dualP: _player.attr.dualP }]);
         }
-        //console.log('DUAL', this.DualPlayer, ' <--> MONO ', this.CurrentPlayer);
-        console.log('CurrentPlayer ', this.CurrentPlayer);
+        //playersMap.set(_player.name, { title: _player.attr.title, playing: _player.attr.playing, dualP: _player.attr.dualP });
+        console.log(`CurrentPlayer { name: ${this.CurrentPlayer.name}, playing: ${this.CurrentPlayer.attr.playing}}`);
         console.log('');
     }
 
@@ -121,7 +110,7 @@ export class MediaKeyHandler {
         if (this.isDualPlayer()) {
             //dualplayer is not frontmost
             this.CurrentPlayer = this.DualPlayer;
-            this.DualPlayer = { name: 'none', attr: { playing: false, dualP: true } };
+            this.DualPlayer = { name: 'none', attr: { title: '', playing: false, dualP: true } };
             return this.getPlayerObject(this.CurrentPlayer.name);
         } else {
             if (player.name === ' ') {
@@ -140,7 +129,7 @@ export class MediaKeyHandler {
         if (this.CurrentPlayer.attr.playing) {//if (!this.CurrentPlayer.attr.playing) {
             return false;
         }
-        if (utility.extractPlayerName(this.CurrentPlayer.name) == utility.ActiveApp()) {//if (this.CurrentPlayer.name != utility.ActiveApp()) {
+        if (utility.extractAppName(this.CurrentPlayer.name) == utility.ActiveApp()) {//if (this.CurrentPlayer.name != utility.ActiveApp()) {
             return false;
         }
         if (!this.DualPlayer.attr.playing) {//if (this.DualPlayer.attr.playing) {
@@ -173,7 +162,7 @@ export class MediaKeyHandler {
 
     private init() {
         this.Store = '';
-        this.DualPlayer = { name: 'none', attr: { playing: false, dualP: true } };
+        this.DualPlayer = { name: 'none', attr: { title: '', playing: false, dualP: true } };
         myService.startService();
         app.on('ready', () => {
             this.listenerIni();
@@ -239,12 +228,12 @@ export class MediaKeyHandler {
     }
 
     private listenerIni() {
-        handlerListener.setMaxListeners(50);
+        handlerListener.setMaxListeners(150);
         handlerListener.on('playing', (message: PlayerMessage) => {
             let tempDualP = message._dualP;
             //no need to send _dualP-attribut if no sense
             if (tempDualP == null) { tempDualP = false; }
-            let tempPlayer = { name: message.name, attr: { playing: message.state, dualP: tempDualP } };
+            let tempPlayer = { name: message.name, attr: { title: message.title || message.name, playing: message.state, dualP: tempDualP } };
             this.setPlayers(tempPlayer);
         });
 
@@ -263,40 +252,26 @@ export class MediaKeyHandler {
         }
     }
 
-    private setPlayers(player: Player) {
-        if (this.evalPlayerType(player) === PlayerType.MONO) {
-            if (player.name.includes('none')) {
-                return;
-            }
+    private setPlayers(player: Player, plAct?: boolean) {
+        if (player.name.includes('none')) {
+            return;
+        }
+        const activatePlayer = plAct; //!player.attr.playing && this.CurrentPlayer.name !== player.name && !this.CurrentPlayer.attr.playing;
+        const newPlayer = this.CurrentPlayer.name !== player.name && player.attr.playing;
+        const stateChange = this.CurrentPlayer.attr.playing !== player.attr.playing && this.CurrentPlayer.name === player.name;
+
+        //console.log('player', player.name, 'activatePlayer', activatePlayer, 'newPlayer ', newPlayer, ' stateChange ', stateChange);
+        if (stateChange || newPlayer || activatePlayer) {
             if (player.attr.playing) {
                 this.pause(player);
             }
             this.TouchbarItem = player.attr.playing;
-            this.CurrentPlayer = { name: player.name, attr: { playing: player.attr.playing, dualP: player.attr.dualP } };
-            this.updateMenuBar(player.name, this.CurrentPlayer.attr.playing);
+            this.CurrentPlayer = { name: player.name, attr: { title: player.attr.title, playing: player.attr.playing, dualP: player.attr.dualP } };
+            /* if (!activatePlayer)  */this.updateMenuBar(player.name, player.attr.title, player.attr.playing, false);
         } else {
-            if (this.DualPlayer.attr.playing) {
-                this.evalHandlePlayer(this.DualPlayer).pause();
-            }
-            this.DualPlayer = { name: player.name, attr: { playing: player.attr.playing, dualP: player.attr.dualP } };
+            //playersMap.set(player.name, { playing: player.attr.playing, title: player.attr.title, dualP: false });
         }
-    }
 
-    private evalPlayerType(player: Player): PlayerType {
-        if (player.attr.playing) {
-            if (this.CurrentPlayer.attr.playing && player.attr.dualP) {
-                return PlayerType.DUAL;
-            } else {
-                return PlayerType.MONO;
-            }
-        } else {
-            //paused
-            if (player.attr.dualP && player.name === this.DualPlayer.name) {
-                return PlayerType.DUAL;
-            } else {
-                return PlayerType.MONO;
-            }
-        }
     }
 
     //@ts-ignore
@@ -312,7 +287,7 @@ export class MediaKeyHandler {
     */
     private getPlayerObject(str: string): any {
         for (let h of handlers) {
-            if (h.Name === this.fallbackPlayer(str)) {
+            if (h.Name === this.appName(str)) {
                 return h;
             }
         }
@@ -320,33 +295,33 @@ export class MediaKeyHandler {
     }
 
     private pause(player: Player) {
-        playersMap.forEach((_value: PlayerAttributes, key: string) => {
-
-            let pl = this.getPlayerObject(this.fallbackPlayer(key));
-            if (_value.dualP && _value.playing && this.CurrentPlayer.attr.dualP) {
-                this.DualPlayer = { name: key, attr: { playing: true, dualP: true } };
-                playersMap.delete(key);
-            } else if (!key.includes(this.fallbackPlayer(player.name))) {
-                pl.pause();
+        let currAppName = this.appName(player.name);
+        playersMap.forEach((_value: [Date, PlayerAttributes], key: string) => {
+            let appName = this.appName(key);
+            let pl = this.getPlayerObject(appName);
+            if (key !== player.name) {
+                //important for tray icon
+                _value[1].playing = false;
+                if (currAppName !== appName) pl.pause();
             }
         });
         this.TouchbarItem = false;
     }
 
-    private fallbackPlayer(playerName: string): string {
-        let curPlayer = utility.extractPlayerName(playerName);
-        if (curPlayer === 'none') {
-            curPlayer = this.DefaultPlayer;
-        }
-        return curPlayer;
+    private appName(playerName: string): string {
+        let appName = utility.extractAppName(playerName);
+        /* if (appName === 'none') {
+            appName = this.DefaultPlayer;
+        } */
+        return appName;
     }
 
     private setDefaultPlayer() {
         this.DefaultPlayer = this.Store.get('player');
         if (this.DefaultPlayer && !this.getPlayerObject(this.DefaultPlayer).IsPlaying) {
-            this.CurrentPlayer = { name: this.DefaultPlayer, attr: { playing: false, dualP: false } };
+            this.CurrentPlayer = { name: this.DefaultPlayer, attr: { title: this.DefaultPlayer, playing: false, dualP: false } };
             setTimeout(() => {
-                this.updateMenuBar(this.DefaultPlayer);
+                this.updateMenuBar(this.DefaultPlayer, this.DefaultPlayer, false, false);
             }, 200);
         }
     }
@@ -359,25 +334,28 @@ export class MediaKeyHandler {
                     if (h.Name === this.DefaultPlayer) {
                         this.setDefaultPlayer();
                     } else if (h.Name !== 'Chrome') {
-                        this.CurrentPlayer = { name: h.Name, attr: { playing: false, dualP: false } };
+                        this.CurrentPlayer = { name: h.Name, attr: { title: h.title, playing: false, dualP: false } };
                     }
                 }
             }
         }, 1000);
     }
 
-    private appQuit(_player: string) {
-        if (playersMap.has(_player))
-            playersMap.delete(_player);
+    private appQuit(_playerName: string) {
+        if (playersMap.has(_playerName)) {
+            playersMap.delete(_playerName);
+            playersMap.forEach(pl => pl[1].playing = false);
+            console.log('deleted', _playerName);
+        }
 
         if (playersMap.size === 0) {
-            this.CurrentPlayer = { name: this.DefaultPlayer, attr: { playing: false, dualP: false } };
+            this.CurrentPlayer = { name: this.DefaultPlayer, attr: { title: this.DefaultPlayer, playing: false, dualP: false } };
         }
-        console.log('appQuit ', _player, this.CurrentPlayer, playersMap);
+        console.log('appQuit ', playersMap);
 
-        let menbarPl = utility.extractPlayerName(_player);
-        if (!playersMap.has(menbarPl) && menbarPl !== this.DefaultPlayer) {
-            this.updateMenuBar(menbarPl, false);
+        let menbarPl = utility.extractAppName(_playerName);
+        if (!playersMap.has(_playerName) && menbarPl !== this.DefaultPlayer) {
+            this.updateMenuBar(menbarPl, '', false, true);
         }
     }
     //Methods called from main.ts
@@ -385,21 +363,28 @@ export class MediaKeyHandler {
     /**
      * Raises player which is last(this.CurrentPlayer.name) in map
      */
-    public activate() {
-        this.getPlayerObject(this.CurrentPlayer.name).activate();
+    public activate(str?: string) {
+        //console.log('med key Current ', this.CurrentPlayer.name);
+        this.getPlayerObject(this.CurrentPlayer.name).activate(str);
     }
 
-    public changePlayer(playerName: string) {
-        let pl = { name: playerName, attr: { playing: false, dualP: false } };
-        this.pause(pl);
-        this.setPlayers(pl);
+    public getPlayersMap(): Map<string, [Date, PlayerAttributes]> {
+        return playersMap;
     }
-    public updateMenuBar(str: string, _state?: boolean) {
-        let player: string = this.fallbackPlayer(str);
-        let playState = _state;
-        if (player === this.DefaultPlayer) {
-            playState = true;
-        }
-        this.Event.emit('update', player, playState);
+
+    public changePlayer(playerName: string, playerTitle: string) {
+        let pl = { name: playerName, attr: { title: playerTitle, playing: false, dualP: false } };
+        this.CurrentPlayer.attr.playing = false;
+        this.pause(pl);
+        this.setPlayers(pl, true);
+        this.activate(playerName);
+    }
+    public updateMenuBar(name: string, title: string, _state?: boolean, deleteItem?: boolean) {
+        /*  let playerName: string = name.split(':').pop() || name;
+         let playState = _state;
+         if (playerName === this.DefaultPlayer) {
+             playState = true;
+         } */
+        this.Event.emit('update');
     }
 }

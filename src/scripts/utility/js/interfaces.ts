@@ -28,15 +28,25 @@ export interface PlayerMessage {
     name: string;
     state: boolean;
     _dualP: boolean | undefined;
+    title?: string;
 }
 
 export interface ChromeObj {
-    play: boolean;
-    handleUrl: string;
-    idleTabUrl: string;
-    activeTabUrl: string;
-    sites: Array<string>;
+    handleTab: ChromePlayerObj;
+    activeTab: {
+        id: number;
+        url: string;
+    };
+    sites: Array<ChromePlayerObj>;
     isRunning: boolean;
+    error?: string;
+}
+
+export interface ChromePlayerObj {
+    id: number;
+    title: string;
+    url: string;
+    playing?: boolean;
 }
 
 export interface PlayerStateMessage {
@@ -52,5 +62,6 @@ export interface Player {
 
 export interface PlayerAttributes {
     playing: boolean;
+    title: string;
     dualP: boolean;
 }

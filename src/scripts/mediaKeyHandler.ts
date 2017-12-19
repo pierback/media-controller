@@ -191,7 +191,7 @@ export class MediaKeyHandler {
 
         handlerListener.on('running', (message: any) => {
             if (!message.running) {
-                this.appQuit(message.id);
+                this.playerQuit(message.id);
             }
         });
 
@@ -292,7 +292,7 @@ export class MediaKeyHandler {
         }, 1000);
     }
 
-    private appQuit(_playerName: PlayerID) {
+    private playerQuit(_playerName: PlayerID) {
         if (playersMap.has(_playerName)) {
             playersMap.delete(_playerName);
             playersMap.forEach(pl => { if (pl[1].id !== this.CurrentPlayer.id) pl[1].playing = false; });
@@ -302,7 +302,7 @@ export class MediaKeyHandler {
             // tslint:disable-next-line:max-line-length
             this.CurrentPlayer = { id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer) };
         }
-        utility.printMap('appQuit ', playersMap);
+        utility.printMap('playerQuit ', playersMap);
         this.updateMenuBar();
         //let menbarPl = utility.extractAppName(_playerName);
         /* if (!playersMap.has(_playerName) && menbarPl !== this.DefaultPlayer) {

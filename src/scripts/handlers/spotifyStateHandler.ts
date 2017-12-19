@@ -80,8 +80,8 @@ export class SpotifyStateHandler implements HandlerInterface {
         });
     }
 
-    activate() {
-        spotify.activate();
+    activate(act: string) {
+        spotify.activate(act);
     }
 
     pause() {

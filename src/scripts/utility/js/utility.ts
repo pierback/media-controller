@@ -139,7 +139,7 @@ export module utility {
     export function printMap<T, K>(str: string, inpMap: Map<T, [Date, K]>) {
         //const tempMap = this.deepClone(playerMap) as Map<number, [Date, ChromePlayer]>;
         let outPutArr: any = [];
-        inpMap.forEach((v, k) => {
+        inpMap.forEach((v, _k) => {
             //@ts-ignore
             outPutArr.push({ title: v[1].title, playing: v[1].playing });
         });

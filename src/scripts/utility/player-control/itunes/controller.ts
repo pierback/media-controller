@@ -88,7 +88,8 @@ export class ItunesController {
         });
     }
 
-    activate() {
+    activate(activation: string = 'null') {
+        if (activation !== 'null') this.lastActiveApp = 'com.apple.iTunes';
         let cmd: string = '';
         if (process.platform === 'darwin') {
             cmd = frontmostAppScptMac;

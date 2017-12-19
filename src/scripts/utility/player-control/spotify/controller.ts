@@ -99,7 +99,8 @@ export class SpotifyController {
         });
     }
 
-    activate() {
+    activate(activation: string = 'null') {
+        if (activation !== 'null') this.lastActiveApp = 'com.spotify.client';
         let cmd: string = '';
         if (process.platform === 'darwin') {
             cmd = frontmostAppScptMac;

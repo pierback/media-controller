@@ -88,8 +88,8 @@ export class ItunesStateHandler implements HandlerInterface {
         }
     }
 
-    activate() {
-        iTunes.activate();
+    activate(act: string) {
+        iTunes.activate(act);
     }
 
     pause() {

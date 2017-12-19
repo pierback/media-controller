@@ -32,10 +32,11 @@ if get running of application "Google Chrome" is true then
 						set playing to execute t javascript "document.querySelector('.playControl').classList.contains('playing')"
 						set ready to execute t javascript "document.readyState"
 						set pTitle to execute t javascript "document.querySelector('.playbackSoundBadge__title>a').title"
+						set pTitle to "Soundcloud - " & pTitle
 						if ready is equal to "complete" then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
@@ -45,10 +46,12 @@ if get running of application "Google Chrome" is true then
 						set playing to execute t javascript "!document.querySelector('#movie_player video').paused"
 						set ready to execute t javascript "document.readyState"
 						set pTitle to execute t javascript "document.title.replace(' - YouTube', '')"
-						if ready is equal to "complete" then
+						set pTitle to "Youtube - " & pTitle
+						set youtubeBrowse to "https://www.youtube.com/"
+						if ready is equal to "complete" and actUrl is not equal to youtubeBrowse then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
@@ -65,7 +68,7 @@ if get running of application "Google Chrome" is true then
 						if ready is equal to "complete" then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
@@ -75,23 +78,27 @@ if get running of application "Google Chrome" is true then
 						set playing to execute t javascript "!document.querySelector('video').paused"
 						set ready to execute t javascript "document.readyState"
 						set pTitle to execute t javascript "document.querySelector('.ellipsize-text>h4').textContent"
+						set pTitle to "Netflix - " & pTitle
 						--ignore browser page videos
 						if ready is equal to "complete" and actUrl is not equal to "https://www.netflix.com/browse" then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", "Netflix - " & pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", "Netflix - " & pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
-							copy json's createDictWith({{"id", id of t}, {"title",  "Netflix - " & pTitle}, {"url", actUrl}, {"playing", play}}) to end of sites
+							copy json's createDictWith({{"id", id of t}, {"title", "Netflix - " & pTitle}, {"url", actUrl}, {"playing", play}}) to end of sites
 						end if
 					else if ("www.beatport.com" is equal to actHost) then
 						set playing to execute t javascript "document.querySelector('.play-button.play') === null"
 						set ready to execute t javascript "document.readyState"
+						set primaryTitle to execute t javascript "document.querySelector('.primary-title').textContent"
+						set remixed to execute t javascript "document.querySelector('.remixed').textContent"
+						set pTitle to "Beatport - " & primaryTitle & " (" & remixed & ")"
 						if ready is equal to "complete" then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
@@ -100,23 +107,26 @@ if get running of application "Google Chrome" is true then
 					else if ("www.skygo.sky.de" is equal to actHost) then
 						set playing to execute t javascript "!document.querySelector('video').paused"
 						set ready to execute t javascript "document.readyState"
+						set pTitle to execute t javascript "document.querySelector('.detail_header>h1') !== null ? document.querySelector('.detail_header>h1').textContent : false"
+						set pTitle to "SkyGo - " & pTitle
 						if ready is equal to "complete" then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
-								end if 
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
+								end if
 								set play to true
 							end if
 							copy json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", play}}) to end of sites
 						end if
 					else if ("be-at.tv" is equal to actHost) then
-						set playing to execute t javascript "document.querySelector('#radio .playbutton')
-      .style.display === 'none'"
+						set playing to execute t javascript "document.querySelector('#radio .playbutton').style.display === 'none'"
 						set ready to execute t javascript "document.readyState"
+						set pTitle to execute t javascript "document.querySelector('#ticker').textContent"
+						set pTitle to "Be-At TV - " & pTitle
 						if ready is equal to "complete" then
 							if playing is equal to true then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
@@ -129,7 +139,7 @@ if get running of application "Google Chrome" is true then
 							set playing to execute t javascript "!document.querySelector('video').paused"
 							if playing is equal to true and activeVid is equal to {} then
 								if actUrl is equal to activeTabUrl then
-									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+									set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 								end if
 								set play to true
 							end if
@@ -137,19 +147,21 @@ if get running of application "Google Chrome" is true then
 						end if
 					else if ("open.spotify.com" is equal to actHost) then
 						set ready to execute t javascript "document.readyState"
+						set pTitle to execute t javascript "document.querySelector('.track-info__name').textContent"
+						set pTitle to "Spotify - " & pTitle
 						if ready is equal to "complete" then
 							set playing to execute t javascript "document.querySelector('.control-button--circled').classList.contains('spoticon-pause-16')"
 							--set actUrl to execute t javascript "document.querySelector('.track-info__name.ellipsis-one-line').children[0].children[0].href" 
 							if get running of application "Spotify" is false then
 								if playing is true then
 									if "open.spotify.com" is in activeTabUrl then
-										set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle},{"url", actUrl},{"playing", true}})
+										set handleTab to json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", true}})
 									end if
 									set play to true
 								end if
 							end if
 							copy json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", play}}) to end of sites
-						end if	
+						end if
 					end if
 				end if
 			end repeat

@@ -109,7 +109,7 @@ export class ChromeController {
             playerMap.set(plVal[1].id, plVal);
         //playersMap.set(_player.name, { title: _player.attr.title, playing: _player.attr.playing, dualP: _player.attr.dualP });
         //console.log(`ChromePlayer { name: ${this.CurrentPlayer.url}, playing: ${this.CurrentPlayer.playing}}`);
-        console.log('Chrome map', playerMap);
+        utility.printMap('Chrome ', playerMap);
         console.log('');
     }
 
@@ -123,6 +123,7 @@ export class ChromeController {
                 if (!found) {
                     this.onRunning.trigger({ title: val[1].title, id: key, running: false });
                     playerMap.delete(key);
+                    console.log('deleted', val[1].title, ' new player', this.CurrentPlayer.title);
                 }
             });
         }
@@ -169,25 +170,10 @@ export class ChromeController {
     }
 
     playerStateChanged(result: ChromeObj) {
-        // && (this.CurrentPlayer.name === 'none' && result.sites && this.playingSites.length > 0);
-        //const handleTab = result.handleTab.url ? // result.sites ?  : result.idleTabUrl;
-        let initCase = false; //result.handleTab.playing && result.handleTab.url !== '';
-        let handleTabState = false;
         let newPlayer = false;
         let stateChanged = false;
-        /* result.sites.forEach((v) => {
-            if (v.playing && v.id !== this.CurrentPlayer.id) {
-                newPlayer = true;
-                this.CurrentPlayer.playing = false;
-                this.CurrentPlayer = v;
-                this.pause(this.CurrentPlayer.url);
-            }
-            if (v.id === this.CurrentPlayer.id) {
-                stateChanged = true;
-                this.CurrentPlayer = v;
-            }
-        }); */
 
+        //stateChanged part
         if (!result.handleTab.id) {
             const curPl = this.PlayingSites.get(this.CurrentPlayer.id);
             if (curPl && this.CurrentPlayer.playing !== curPl[1].playing) {
@@ -197,48 +183,31 @@ export class ChromeController {
         } else if (result.handleTab.id && this.CurrentPlayer.id === result.handleTab.id && this.CurrentPlayer.playing !== result.handleTab.playing) {
             this.CurrentPlayer = result.handleTab;
             stateChanged = true;
-        }
-
-        if (this.CurrentPlayer.id !== result.handleTab.id && result.handleTab.playing) {
-            newPlayer = true;
-            this.CurrentPlayer.playing = false;
+        } else if (result.handleTab.id && this.CurrentPlayer.id && this.CurrentPlayer.title !== result.handleTab.title) {
+            console.log('title changed');
             this.CurrentPlayer = result.handleTab;
-            this.pause(this.CurrentPlayer.url);
+            stateChanged = true;
         }
 
-        /*         let curPl: [Date, ChromePlayer];
-                if (this.PlayingSites && this.CurrentPlayer.id > -1) {
-                    //@ts-ignore
-                    curPl = this.PlayingSites.get(this.CurrentPlayer.id);
-                    handleTabState = this.CurrentPlayer.playing !== curPl[1].playing;
-        
-                }
-                stateChanged = handleTabState;
-                //const newPlayer = this.CurrentPlayer.id !== result.handleTab.id && result.handleTab.playing; //&& result.handleTab.url !== '';
-                const allTabsClosed = false; //result.sites.length === 0 || this.CurrentPlayer.title !== 'none';
-        
-                if (stateChanged) {
-                    if (this.CurrentPlayer.playing) {
-                        //@ts-ignore
-                        console.log('statechanged', stateChanged, 'curPl[1]', curPl[1].id === this.CurrentPlayer.id);
-                        //@ts-ignore
-                        this.CurrentPlayer = curPl[1];
-                    } else {
-                        this.CurrentPlayer = result.handleTab;
+        //newplayer part
+        if (this.CurrentPlayer.id !== result.handleTab.id) {
+            if (result.handleTab.playing) {
+                newPlayer = true;
+                playerMap.forEach(v => v[1].playing = false);
+                this.CurrentPlayer = result.handleTab;
+                this.pause(this.CurrentPlayer.url);
+            } else {
+                result.sites.forEach((v) => {
+                    if (v.playing && v.id !== this.CurrentPlayer.id) {
+                        newPlayer = true;
+                        playerMap.forEach(v => v[1].playing = false);
+                        this.CurrentPlayer = v;
+                        this.pause(this.CurrentPlayer.url);
                     }
-                } */
-        /* if (newPlayer) {
-            result.sites.forEach((val) => {
-                if (val.playing) {
-                    this.CurrentPlayer = val;
-                }
-            });
-            console.log('new Player');
-            //this.CurrentPlayer = result.handleTab;
-            this.pause(this.CurrentPlayer.url);
-        } */
-
-        return initCase || stateChanged || newPlayer;
+                });
+            }
+        }
+        return stateChanged || newPlayer;
     }
 
     checkHandleTab(sites: Array<ChromePlayer>) {
@@ -260,29 +229,6 @@ export class ChromeController {
             //@ts-ignore                        //no potential player take last one in sites || nothing in sites set player to none
             this.CurrentPlayer = potentialPl || [...sites].pop() || { id: -1, title: 'none', url: 'none', playing: false };
         }
-    }
-
-    /**
-     * Eval if Dualplayer is new Monoplayer
-     */
-    isDualPlayer(): boolean {
-        return false;
-        //@ts-ignore
-        if (this.CurrentPlayer.attr.playing) {//if (!this.CurrentPlayer.attr.playing) {
-            return false;
-        }
-        //@ts-ignore
-        if (this.CurrentPlayer.name == this.curTab) {//if (this.CurrentPlayer.name != utility.ActiveApp()) {
-            return false;
-        }
-        //@ts-ignore
-        if (!this.DualPlayer.attr.playing) {//if (this.DualPlayer.attr.playing) {
-            return false;
-        }
-        /* if (this.IsFrontmost) {//if (!this.getPlayerObject(this.DualPlayer.name).IsFrontmost) {
-            return false;
-        } */
-        return true;
     }
 
     setChromePlayer(player: ChromePlayer) {
@@ -321,7 +267,7 @@ export class ChromeController {
         let tab = encodeURIComponent(activatePl);
         let strings = [frontmostAppScpt, 'com.google.Chrome', tab, this.lastActiveApp];
         let activate = strings.join(' ');
-        console.log('activate ', activate);
+        //console.log('activate ', activate);
         if (this.IsRunning == 1) {
             utility.lastActiveApp(activate)
                 .then((data: string) => {

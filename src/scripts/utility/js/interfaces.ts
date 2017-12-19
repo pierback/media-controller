@@ -96,5 +96,5 @@ export interface ChromePlayer {
     id: number;
     title: string;
     url: string;
-    playing?: boolean;
+    playing: boolean;
 }

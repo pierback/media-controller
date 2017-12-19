@@ -136,6 +136,33 @@ export module utility {
 
     }
 
+    export function printMap<T, K>(str: string, inpMap: Map<T, [Date, K]>) {
+        //const tempMap = this.deepClone(playerMap) as Map<number, [Date, ChromePlayer]>;
+        let outPutArr: any = [];
+        inpMap.forEach((v, k) => {
+            //@ts-ignore
+            outPutArr.push({ title: v[1].title, playing: v[1].playing });
+        });
+        console.log(str, ' Map');
+        console.log(outPutArr);
+    }
+
+    export function deepClone(obj: any) {
+        if (!obj || true == obj) //this also handles boolean as true and false
+            return obj;
+        let objType = typeof (obj);
+        if ('number' == objType || 'string' == objType) // add your immutables here
+            return obj;
+        let result = Array.isArray(obj) ? [] : !obj.constructor ? {} : new obj.constructor();
+        if (obj instanceof Map)
+            for (let key of obj.keys())
+                result.set(key, deepClone(obj.get(key)));
+        for (let key in obj)
+            if (obj.hasOwnProperty(key))
+                result[key] = deepClone(obj[key]);
+        return result;
+    }
+
     export function safelyParseJSON(json: any) {
         let parsed;
         try {

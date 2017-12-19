@@ -93,8 +93,8 @@ export class MediaKeyHandler {
             playersMap.set(_player.id, [new Date(), { id: _player.id, title: _player.title, playing: _player.playing, plObj: _player.plObj }]);
         }
         //playersMap.set(_player.id, { title: _player.title, playing: _player.playing, dualP: _player.dualP });
-        console.log(`CurrentPlayer { id: ${this.CurrentPlayer.id}, playing: ${this.CurrentPlayer.playing}}`);
-        console.log('');
+        //console.log(`CurrentPlayer { id: ${this.CurrentPlayer.id}, playing: ${this.CurrentPlayer.playing}}`);
+        //console.log('');
     }
 
     private keyListenerIni() {
@@ -185,7 +185,6 @@ export class MediaKeyHandler {
     private listenerIni() {
         handlerListener.setMaxListeners(150);
         handlerListener.on('playing', (message: Player) => {
-            console.log('playing', message.id);
             let tempPlayer = { id: message.id, title: message.title || message.id, playing: message.playing, plObj: message.plObj };
             this.setPlayers(tempPlayer);
         });
@@ -212,9 +211,10 @@ export class MediaKeyHandler {
         const activatePlayer = plAct; //!player.playing && this.CurrentPlayer.id !== player.id && !this.CurrentPlayer.playing;
         const newPlayer = this.CurrentPlayer.id !== player.id && player.playing;
         const stateChange = this.CurrentPlayer.playing !== player.playing && this.CurrentPlayer.id === player.id;
+        const titleChanged = this.CurrentPlayer.id === player.id && this.CurrentPlayer.title !== player.title;
 
         //console.log('player', player.id, 'activatePlayer', activatePlayer, 'newPlayer ', newPlayer, ' stateChange ', stateChange);
-        if (stateChange || newPlayer || activatePlayer) {
+        if (stateChange || newPlayer || activatePlayer || titleChanged) {
             if (player.playing) {
                 this.pause(player);
             }
@@ -296,19 +296,17 @@ export class MediaKeyHandler {
         if (playersMap.has(_playerName)) {
             playersMap.delete(_playerName);
             playersMap.forEach(pl => pl[1].playing = false);
-            console.log('deleted', _playerName);
         }
 
         if (playersMap.size === 0) {
             // tslint:disable-next-line:max-line-length
             this.CurrentPlayer = { id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer) };
         }
-        console.log('appQuit ', playersMap);
-
-        let menbarPl = utility.extractAppName(_playerName);
-        if (!playersMap.has(_playerName) && menbarPl !== this.DefaultPlayer) {
-            this.updateMenuBar();
-        }
+        utility.printMap('appQuit ', playersMap);
+        this.updateMenuBar();
+        //let menbarPl = utility.extractAppName(_playerName);
+        /* if (!playersMap.has(_playerName) && menbarPl !== this.DefaultPlayer) {
+        } */
     }
     //Methods called from main.ts
 

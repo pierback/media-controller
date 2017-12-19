@@ -5,8 +5,6 @@ import { EventEmitter } from 'events';
 import { MediaKeyHandler } from '../scripts/mediaKeyHandler';
 import { Player } from '../scripts/utility/js/interfaces';
 
-//@ts-ignore
-let mainWindow: Electron.BrowserWindow;
 const mkh = new MediaKeyHandler(EventEmitter);
 let tray: Electron.Tray;
 
@@ -18,8 +16,6 @@ function createWindow() {
     minimizable: false, maximizable: false, /*vibrancy: 'popover', zoomToPageWidth: true*/
   });
   window.loadURL(`file://${__dirname}/index.html`);
-
-  return window;
 }
 
 function PlayersMap(): Map<string, [Date, Player]> {
@@ -28,8 +24,22 @@ function PlayersMap(): Map<string, [Date, Player]> {
 
 mkh.Event.on('update', () => {
   createTrayIcon();
-  //updateMenuBar();
 });
+
+//@ts-ignore
+const text_truncate = function (str, length, ending) {
+  if (length == null) {
+    length = 100;
+  }
+  if (ending == null) {
+    ending = '...';
+  }
+  if (str.length > length) {
+    return str.substring(0, length - ending.length) + ending;
+  } else {
+    return str;
+  }
+};
 
 function updateMenuBar() {
   const separator: Electron.MenuItemConstructorOptions = { type: 'separator' };
@@ -44,19 +54,16 @@ function updateMenuBar() {
     }
   };
 
-  //setActivePlayers();
   let contextMenu = new Menu();
   if (contextMenu) {
-    //console.log('playersmap ', PlayersMap());
     for (let ap of PlayersMap().keys()) {
       //@ts-ignore
-
-      let itemAttr: [Date, PlayerAttributes] = PlayersMap().get(ap);
-
+      let itemAttr: [Date, Player] = PlayersMap().get(ap);
       let curPlayer = ap === mkh.CurrentPlayer.id;
+      let title = text_truncate(itemAttr[1].title, 30, '...');
 
       let newItem: Electron.MenuItemConstructorOptions = {
-        label: itemAttr[1].title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {
+        label: title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {
           for (let item of contextMenu.items) {
             item.checked = false;
           }
@@ -78,12 +85,6 @@ function updateMenuBar() {
 
     let _quit = new MenuItem(quit);
     contextMenu.append(_quit);
-
-    /* for (let item of contextMenu.items) {
-      if (item.label === mkh.CurrentPlayer.name.split(':').pop()) {
-        item.checked = true;
-      }
-    } */
   }
   tray.setContextMenu(contextMenu);
 }

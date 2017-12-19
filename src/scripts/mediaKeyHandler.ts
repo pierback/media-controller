@@ -295,7 +295,7 @@ export class MediaKeyHandler {
     private appQuit(_playerName: PlayerID) {
         if (playersMap.has(_playerName)) {
             playersMap.delete(_playerName);
-            playersMap.forEach(pl => pl[1].playing = false);
+            playersMap.forEach(pl => { if (pl[1].id !== this.CurrentPlayer.id) pl[1].playing = false; });
         }
 
         if (playersMap.size === 0) {

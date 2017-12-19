@@ -3,16 +3,10 @@ import { app, Menu, Tray, nativeImage, BrowserWindow, MenuItem } from 'electron'
 import * as electron from 'electron';
 import { EventEmitter } from 'events';
 import { MediaKeyHandler } from '../scripts/mediaKeyHandler';
-import { Player, PlayerMessage, PlayerAttributes, PlayerType } from '../scripts/utility/js/interfaces';
-
-interface MenuItemAttr {
-  title: string;
-  state: boolean;
-}
+import { Player } from '../scripts/utility/js/interfaces';
 
 //@ts-ignore
 let mainWindow: Electron.BrowserWindow;
-let activePlayers: Map<string, MenuItemAttr> = new Map<string, MenuItemAttr>();
 const mkh = new MediaKeyHandler(EventEmitter);
 let tray: Electron.Tray;
 
@@ -28,7 +22,7 @@ function createWindow() {
   return window;
 }
 
-function PlayersMap(): Map<string, [Date, PlayerAttributes]> {
+function PlayersMap(): Map<string, [Date, Player]> {
   return mkh.getPlayersMap();
 }
 
@@ -59,7 +53,7 @@ function updateMenuBar() {
 
       let itemAttr: [Date, PlayerAttributes] = PlayersMap().get(ap);
 
-      let curPlayer = ap === mkh.CurrentPlayer.name;
+      let curPlayer = ap === mkh.CurrentPlayer.id;
 
       let newItem: Electron.MenuItemConstructorOptions = {
         label: itemAttr[1].title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {
@@ -94,27 +88,12 @@ function updateMenuBar() {
   tray.setContextMenu(contextMenu);
 }
 
-/* function setActivePlayers(name: string, title: string, _plState: boolean) {
-  if (name) {
-    activePlayers.set(name, { title: title, state: _plState });
-    console.log(activePlayers);
-    for (let ap of activePlayers.keys()) {
-      let tmp = activePlayers.get(ap);
-      if (ap !== name && ap !== '') {
-        //@ts-ignore
-        activePlayers.set(ap, { title: tmp.title, state: false });
-
-      }
-    }
-  }
-}
- */
 function createTrayIcon(_state?: any) {
   if (process.platform === 'darwin') { app.dock.hide(); }
   let image = null;
   let icon = null;
 
-  if (!mkh.CurrentPlayer.attr.playing) {
+  if (!mkh.CurrentPlayer.playing) {
     icon = `${__dirname}/../assets/play.png`;
   } else {
     icon = `${__dirname}/../assets/pause.png`;
@@ -135,6 +114,7 @@ function createTrayIcon(_state?: any) {
   if (!mkh.Store.get('player')) {
     createWindow();
   } else {
+    //@ts-ignore
     let temp: string = mkh.Store.get('player');
     updateMenuBar();
   }

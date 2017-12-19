@@ -1,22 +1,23 @@
 //@ts-ignore
 import { LiteEvent, ILiteEvent } from './../../js/emitter';
-import { HandlerInterface, ChromeObj, ChromePlayerObj, Running, Player, PlayerAttributes, PlayerStateMessage } from './../../js/interfaces';
+import { ChromeObj, ChromePlayer, Running } from './../../js/interfaces';
 import { utility } from './../../js/utility';
 import * as path from 'path';
 import * as cp from 'child_process';
-import { lchmod } from 'original-fs';
 
 const chromeControlScptPath = path.join(__dirname, 'applescript', 'chromeControl.applescript');
 const chromePlStateScptPath = path.join('..', 'player-control', 'chrome', 'applescript', 'chromePlayState.applescript');
 const frontmostAppScpt = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
 
+let playerMap: Map<number, [Date, ChromePlayer]> = new Map<number, [Date, ChromePlayer]>();
+
 export class ChromeController {
     protected _isRunning: Running;
     protected _isPlaying: boolean;
-    protected _dualPlayer: ChromePlayerObj;
-    protected _currentPlayer: ChromePlayerObj;
+    protected _currentPlayer: ChromePlayer;
     protected _idleTab: string;
-    playingSites: Array<ChromePlayerObj>;
+    protected _playingSites: Map<number, [Date, ChromePlayer]>;
+
     activeTab: string;
     lastActiveApp: string;
     curTab: { id: number, url: string };
@@ -25,13 +26,12 @@ export class ChromeController {
     private readonly onRunning = new LiteEvent<any>();
 
     constructor() {
-        this.playingSites = [];
+        //this.playingSites = [];
         this.ActiveTab = '';
         this.lastActiveApp = 'com.google.Chrome';
         this.IsPlaying = false;
         this.IsRunning = Running.False;
-        this.DualPlayer = { id: -1, title: 'none', url: 'none', playing: false };
-        this.CurrentPlayer = { id: -1, title: 'none', url: 'none', playing: false };
+        this.CurrentPlayer = { id: -1, title: '', playing: false, url: '' };
         this.playstate();
     }
 
@@ -39,11 +39,7 @@ export class ChromeController {
     public get Running() { return this.onRunning.expose(); }
 
     get IsPlaying(): boolean {
-        if (this.CurrentPlayer.url === this.evalHandlePlayer()) {
-            return utility.undefinedToBoolean(this.CurrentPlayer.playing);
-        } else {
-            return utility.undefinedToBoolean(this.DualPlayer.playing);
-        }
+        return utility.undefinedToBoolean(this.CurrentPlayer.playing);
     }
 
     set IsPlaying(state: boolean) {
@@ -74,41 +70,63 @@ export class ChromeController {
         this._idleTab = str;
     }
 
-    get CurrentPlayer(): ChromePlayerObj {
+    /* get CurrentPlayer(): ChromePlayer {
         return this._currentPlayer;
     }
 
-    set DualPlayer(pl: ChromePlayerObj) {
-        this._dualPlayer = pl;
-    }
-
-    get DualPlayer(): ChromePlayerObj {
-        return this._dualPlayer;
-    }
-
-    set CurrentPlayer(_player: ChromePlayerObj) {
+    set CurrentPlayer(_player: ChromePlayer) {
         //player has to be defined
         if (_player.title) { this._currentPlayer = _player; }
+    } */
+
+    get PlayingSites(): Map<number, [Date, ChromePlayer]> {
+        return this._playingSites;
     }
 
-    evalHandleTab(result: ChromeObj): ChromePlayerObj {
-        if (result.handleTab.id) {
-            return result.handleTab;
-        } else {  /* if (result.sites && result.sites.length > 0) { */
-            let initPl = { id: -1, title: 'none', url: 'none', playing: false };
-            for (let pl of result.sites) {
-                if (pl.id === this.CurrentPlayer.id) {
-                    return pl;
-                }
-                if (pl.playing) {
-                    initPl = { id: pl.id, title: pl.title, url: pl.url, playing: pl.playing };
-                }
+    set PlayingSites(sites: Map<number, [Date, ChromePlayer]>) {
+        this._playingSites = sites;
+    }
+
+    get CurrentPlayer(): ChromePlayer {
+        let curPl: ChromePlayer = {
+            id: -1, title: '', playing: false, url: ''
+        };
+        let maxDate: Date;
+        playerMap.forEach((val, key) => {
+            if (maxDate == null || val[0] > maxDate) {
+                maxDate = val[0];
+                let attr = val[1];
+                curPl = { id: key, title: attr.title, playing: attr.playing, url: attr.url };
             }
-            //if initCase and some player is playing || nothing playing in initCase or tab was closed
-            return initPl;
-        } /* else {
-            return this.CurrentPlayer;
-        } */
+        });
+        return curPl;
+    }
+
+    set CurrentPlayer(player: ChromePlayer) {
+        let plVal: [Date, ChromePlayer];
+        plVal = [new Date(), { id: player.id || this.CurrentPlayer.id, title: player.title, playing: player.playing, url: player.url }];
+        if (plVal[1] && plVal[1].id > -1)
+            playerMap.set(plVal[1].id, plVal);
+        //playersMap.set(_player.name, { title: _player.attr.title, playing: _player.attr.playing, dualP: _player.attr.dualP });
+        //console.log(`ChromePlayer { name: ${this.CurrentPlayer.url}, playing: ${this.CurrentPlayer.playing}}`);
+        console.log('Chrome map', playerMap);
+        console.log('');
+    }
+
+    checkTabs(result: ChromeObj): void {
+        const tempMap = new Map(
+            result.sites.map(x => [x.id, [new Date(), x]] as [number, [Date, ChromePlayer]])
+        );
+        if (this.PlayingSites) {
+            this.PlayingSites.forEach((val, key) => {
+                const found = tempMap.get(key);
+                if (!found) {
+                    this.onRunning.trigger({ title: val[1].title, id: key, running: false });
+                    playerMap.delete(key);
+                }
+            });
+        }
+        this.PlayingSites = tempMap;
     }
 
     playstate() {
@@ -130,32 +148,16 @@ export class ChromeController {
             }
             setTimeout(() => helperProcess.send(msg), 500);
             let tempRun = utility.convertToRunningType(result.isRunning);
-            //let _dp = this.evalPrio(result.handleUrl);
-            let _dp = false;
-            this.playingSites = result.sites;
-            this.curTab = result.activeTab;
-
             if (tempRun == Running.True) {
-                if (this.playerStateChanged(result, _dp)) {
-                    let tab = this.evalHandleTab(result);
-                    if (tab.id === -1) {
-                        console.log('tab closed', this.CurrentPlayer);
-                        this.onPlay.trigger({ title: this.CurrentPlayer.title, id: this.CurrentPlayer.id, playing: false });
-                        this.onRunning.trigger({ title: this.CurrentPlayer.title, id: this.CurrentPlayer.id, running: false });
-                        this.setChromePlayer([...result.sites].pop() || { id: -1, title: 'none', url: 'none', playing: false }, _dp);
-                    } else {
-                        this.onPlay.trigger({ id: tab.id, title: tab.title, url: tab.url, playing: tab.playing });
-                        let prevId = this.CurrentPlayer.id;
-                        this.setChromePlayer(tab, _dp);
-                        if (prevId !== result.handleTab.id) { this.pause(this.CurrentPlayer.url); }
-                    }
+                this.checkTabs(result);
+                if (this.playerStateChanged(result)) {
+                    this.onPlay.trigger(this.CurrentPlayer);
                 }
                 this.IsRunning = tempRun;
-                this.IsPlaying = result.handleTab.playing || false;
             } else if (this.IsRunning !== tempRun /* && tab !== 'none' */) {
-                let tab = this.evalHandleTab(result);
-                this.onPlay.trigger({ id: tab.id, title: tab.title, url: tab.url, playing: tab.playing });
-                this.onRunning.trigger({ id: tab.id, title: tab.title, url: tab.url, playing: tab.playing, running: false });
+                //let tab = this.checkTabs(result);
+                /* this.onPlay.trigger({ id: tab.id, title: tab.title, url: tab.url, playing: tab.playing });
+                this.onRunning.trigger({ id: tab.id, title: tab.title, url: tab.url, playing: tab.playing, running: false }); */
                 this.IsRunning = Running.Unknown;
             }
         });
@@ -166,46 +168,82 @@ export class ChromeController {
         });
     }
 
-    playerStateChanged(result: ChromeObj, dualP: boolean) {
+    playerStateChanged(result: ChromeObj) {
         // && (this.CurrentPlayer.name === 'none' && result.sites && this.playingSites.length > 0);
         //const handleTab = result.handleTab.url ? // result.sites ?  : result.idleTabUrl;
         let initCase = false; //result.handleTab.playing && result.handleTab.url !== '';
-
         let handleTabState = false;
-
-        result.sites.forEach((v) => {
+        let newPlayer = false;
+        let stateChanged = false;
+        /* result.sites.forEach((v) => {
+            if (v.playing && v.id !== this.CurrentPlayer.id) {
+                newPlayer = true;
+                this.CurrentPlayer.playing = false;
+                this.CurrentPlayer = v;
+                this.pause(this.CurrentPlayer.url);
+            }
             if (v.id === this.CurrentPlayer.id) {
-                handleTabState = v.playing || false;
+                stateChanged = true;
+                this.CurrentPlayer = v;
             }
-            if (result.handleTab.id == null && this.CurrentPlayer.id === -1) {
-                if (v.playing) {
-                    initCase = true;
-                }
+        }); */
+
+        if (!result.handleTab.id) {
+            const curPl = this.PlayingSites.get(this.CurrentPlayer.id);
+            if (curPl && this.CurrentPlayer.playing !== curPl[1].playing) {
+                this.CurrentPlayer = curPl[1];
+                stateChanged = true;
             }
-        });
-
-        const stateChanged = this.CurrentPlayer.playing !== handleTabState;
-        const newPlayer = this.CurrentPlayer.id !== result.handleTab.id && result.handleTab.playing; //&& result.handleTab.url !== '';
-        const allTabsClosed = result.sites.length === 0 || this.CurrentPlayer.title !== 'none';
-
-        //if (newPlayer)
-        //console.log(`stateChanged ${stateChanged} newPlayer ${newPlayer}`);
-        //console.log(result.sites);
-
-        if (!dualP) {
-            return initCase || stateChanged || newPlayer || allTabsClosed;
-        } else {
-            return false;
-            /* if (this.DualPlayer.attr.playing === !result.play || (this.DualPlayer.name !== result.handleUrl && result.play)
-                || this.DualPlayer.name === 'none') {
-                return true;
-            } else { return false; } */
+        } else if (result.handleTab.id && this.CurrentPlayer.id === result.handleTab.id && this.CurrentPlayer.playing !== result.handleTab.playing) {
+            this.CurrentPlayer = result.handleTab;
+            stateChanged = true;
         }
+
+        if (this.CurrentPlayer.id !== result.handleTab.id && result.handleTab.playing) {
+            newPlayer = true;
+            this.CurrentPlayer.playing = false;
+            this.CurrentPlayer = result.handleTab;
+            this.pause(this.CurrentPlayer.url);
+        }
+
+        /*         let curPl: [Date, ChromePlayer];
+                if (this.PlayingSites && this.CurrentPlayer.id > -1) {
+                    //@ts-ignore
+                    curPl = this.PlayingSites.get(this.CurrentPlayer.id);
+                    handleTabState = this.CurrentPlayer.playing !== curPl[1].playing;
+        
+                }
+                stateChanged = handleTabState;
+                //const newPlayer = this.CurrentPlayer.id !== result.handleTab.id && result.handleTab.playing; //&& result.handleTab.url !== '';
+                const allTabsClosed = false; //result.sites.length === 0 || this.CurrentPlayer.title !== 'none';
+        
+                if (stateChanged) {
+                    if (this.CurrentPlayer.playing) {
+                        //@ts-ignore
+                        console.log('statechanged', stateChanged, 'curPl[1]', curPl[1].id === this.CurrentPlayer.id);
+                        //@ts-ignore
+                        this.CurrentPlayer = curPl[1];
+                    } else {
+                        this.CurrentPlayer = result.handleTab;
+                    }
+                } */
+        /* if (newPlayer) {
+            result.sites.forEach((val) => {
+                if (val.playing) {
+                    this.CurrentPlayer = val;
+                }
+            });
+            console.log('new Player');
+            //this.CurrentPlayer = result.handleTab;
+            this.pause(this.CurrentPlayer.url);
+        } */
+
+        return initCase || stateChanged || newPlayer;
     }
 
-    checkHandleTab(sites: Array<ChromePlayerObj>) {
+    checkHandleTab(sites: Array<ChromePlayer>) {
         let tabClosed = true;
-        let potentialPl: ChromePlayerObj;
+        let potentialPl: ChromePlayer;
         for (let pl of sites) {
             if (pl.id === this.CurrentPlayer.id) {
                 tabClosed = false;
@@ -247,46 +285,15 @@ export class ChromeController {
         return true;
     }
 
-    setChromePlayer(player: ChromePlayerObj, _dual: boolean) {
-        if (_dual) {
-            if (player.url === '' && player.playing === false) {
-                this.DualPlayer.playing = false;
-            } else {
-                this.DualPlayer = player;
-            }
+    setChromePlayer(player: ChromePlayer) {
+        if (player.url === '' && player.playing === false) {
+            this.CurrentPlayer.playing = false;
         } else {
-            if (player.url === '' && player.playing === false) {
-                this.CurrentPlayer.playing = false;
-            } else {
-                this.CurrentPlayer = player;
-            }
+            this.CurrentPlayer = player;
         }
     }
-
-    evalPrio(tab: string) {
-        //TODO:read prio list from json file
-        return false;
-        //@ts-ignore
-        if (tab.includes('sky')) {
-            if (tab.includes('sport')) {
-                return true;
-            } else {
-                return false;
-            }
-        } else if (tab.includes('dazn')) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     evalHandlePlayer(): string {
-        if (this.isDualPlayer()) {
-            //dualplayer is not frontmost
-            return this.DualPlayer.url;
-        } else {
-            return this.CurrentPlayer.url;
-        }
+        return this.CurrentPlayer.url;
     }
 
     /**
@@ -299,13 +306,11 @@ export class ChromeController {
             let plId: number = parseInt(playerName.split(':').pop());
             if (plId && plId > -1) {
                 //eval handle new PLAYER
-                for (let pl of this.playingSites) {
-                    if (plId === pl.id) {
-                        this.CurrentPlayer = pl;
-                        this.lastActiveApp = pl.url;
-                        console.log('playername', playerName, this.CurrentPlayer);
-                        this.pause();
-                    }
+                let playerProps = playerMap.get(plId);
+                if (playerProps) {
+                    this.CurrentPlayer = playerProps[1];
+                    this.lastActiveApp = playerProps[1].url;
+                    this.pause();
                 }
             }
         }
@@ -367,7 +372,7 @@ export class ChromeController {
     }
 
     next() {
-        let player = { id: -1, url: '' };
+        //let player = { id: -1, url: '' };
         this.evalHandlePlayer();
 
         let strings = ['osascript', chromeControlScptPath, 'next', `${this.CurrentPlayer.url} ${this.CurrentPlayer.id}`];

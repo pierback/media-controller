@@ -71,7 +71,8 @@ export class ChromeStateHandler implements HandlerInterface {
         try {
             Chrome.Playing.on((data: Player | any) => {
                 this.IsPlaying = data.playing;
-                this.Event.emit('playing', { name: `${this.Name}:${data.id}`, title: data.title, state: data.playing, _dualP: false });
+                const player: Player = { id: `${this.Name}:${data.id}`, title: data.title, playing: data.playing, plObj: this };
+                this.Event.emit('playing', player);
             });
         } catch (e) {
             console.log(e);
@@ -80,7 +81,7 @@ export class ChromeStateHandler implements HandlerInterface {
         try {
             Chrome.Running.on((data: any) => {
                 this.IsRunning = utility.convertToRunningType(data.isRunning);
-                this.Event.emit('running', { name: `${this.Name}:${data.id}`, running: data.isRunning, _dualP: false });
+                this.Event.emit('running', { id: `${this.Name}:${data.id}`, running: data.isRunning, _dualP: false });
             });
         } catch (e) {
             console.log(e);

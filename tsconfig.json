@@ -14,10 +14,11 @@
     "importHelpers": true,
     "noEmitHelpers": true,
     "module": "commonjs",
-    "moduleResolution": "node",
     "pretty": true,
-    "target": "es2015",
-    "jsx": "react"
+    "jsx": "react",
+    "moduleResolution": "node",
+    "outDir": "/dist/out-tsc",
+    "target": "es6"
   },
   "formatCodeOptions": {
     "indentSize": 2,

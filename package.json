@@ -9,7 +9,9 @@
     "package": "gulp && electron-forge package",
     "make": "gulp && electron-forge make",
     "publish": "gulp && electron-forge publish",
-    "lint": "gulp && tslint --project tsconfig.json --type-check --force"
+    "lint": "gulp && tslint --project tsconfig.json --type-check --force",
+    "dev": "gulp && electron-webpack dev",
+    "rebuild": "electron-rebuild -f -w ./node_modules/electron-media-service"
   },
   "keywords": [],
   "author": "fabianpieringer",
@@ -60,6 +62,9 @@
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
     "electron-forge": "^4.1.6",
+    "electron-webpack": "^1.11.0",
+    "electron-webpack-ts": "^1.2.0",
+    "webpack": "^3.8.1",
     "electron-prebuilt-compile": "1.8.2-beta.3",
     "typescript": "~2.2.2",
     "auto-import": "git+https://github.com/pierback/auto-import.git",

@@ -1,6 +1,6 @@
 'use strict';
 import { EventEmitter } from 'events';
-import { HandlerInterface, Running } from '../utility/js/interfaces';
+import { HandlerInterface, Running, Player } from '../utility/js/interfaces';
 import { utility } from '../utility/js/utility';
 import { ItunesController } from '../utility/player-control/itunes/controller';
 const iTunes = new ItunesController();
@@ -70,7 +70,8 @@ export class ItunesStateHandler implements HandlerInterface {
         try {
             iTunes.Playing.on((data: any) => {
                 this.IsPlaying = data;
-                this.Event.emit('playing', { name: this.Name, state: data, _dualP: false });
+                const player: Player = { id: this.Name, title: this.Name, playing: data, plObj: this };
+                this.Event.emit('playing', player);
             });
         } catch (e) {
             console.log(e);
@@ -80,7 +81,7 @@ export class ItunesStateHandler implements HandlerInterface {
             //@ts-ignore
             iTunes.Running.on((isRunning: boolean) => {
                 this.IsRunning = utility.convertToRunningType(isRunning);
-                this.Event.emit('running', { name: this.Name, running: isRunning, _dualP: false });
+                this.Event.emit('running', { id: this.Name, running: isRunning, _dualP: false });
             });
         } catch (e) {
             console.log(e);

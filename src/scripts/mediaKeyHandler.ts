@@ -111,8 +111,8 @@ export class MediaKeyHandler {
         globalShortcut.register('MediaPlayPause', () => {
             if (!this.evalHandlePlayer()) return;
             let player = this.CurrentPlayer.plObj;
-            let state = player.IsPlaying;
-            state === true ? player.pause() : player.play();
+            console.log('play pause', playersMap, this.CurrentPlayer.playing);
+            this.CurrentPlayer.playing ? player.pause() : player.play();
         });
         globalShortcut.register('MediaPreviousTrack', () => {
             const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.previous();
@@ -289,8 +289,8 @@ export class MediaKeyHandler {
     /**
      * Raises player which is last(this.CurrentPlayer.id) in map
      */
-    public activate(str?: string) {
-        const run = this.evalHandlePlayer() && this.getPlayerObject(this.CurrentPlayer.id).activate(str);
+    public activate(player: Player) {
+        const run = this.evalHandlePlayer() && player.plObj.activate(player.id);
     }
 
     public getPlayersMap(): Map<PlayerID, [Date, Player]> {
@@ -299,10 +299,13 @@ export class MediaKeyHandler {
 
     public changePlayer(playerName: string, _playerTitle?: string) {
         let pl = playersMap.get(playerName) as [Date, Player];
-        this.CurrentPlayer.playing = false;
         this.pause(pl[1]);
-        this.setPlayers(pl[1], true);
-        this.activate(playerName);
+        this.activate(pl[1]);
+        setTimeout(() => {
+            //wait for pausing player event then set playing to false
+            this.setPlayers(pl[1], true);
+            playersMap.forEach(player => { player[1].playing = false; });
+        }, 500);
     }
     public updateMenuBar() {
         this.Event.emit('update');

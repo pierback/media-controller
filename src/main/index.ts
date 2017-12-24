@@ -8,7 +8,7 @@ import { Player } from '../scripts/utility/js/interfaces';
 const mkh = new MediaKeyHandler(EventEmitter);
 let tray: Electron.Tray;
 
-mkh.Event.on('update', (options: any) => {
+mkh.Event.on('update', (_options: any) => {
   createTrayIcon();
 });
 mkh.Event.on('notification', () => {

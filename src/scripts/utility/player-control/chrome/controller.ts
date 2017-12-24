@@ -194,18 +194,23 @@ export class ChromeController {
      * */
 
     activate(playerName: any) {
+        let newActPl: ChromePlayer;
         if (playerName) {
             let plId: number = parseInt(playerName.split(':').pop());
             if (plId && plId > -1) {
                 //eval handle new PLAYER
                 let playerProps = playerMap.get(plId);
                 if (playerProps) {
-                    this.CurrentPlayer = playerProps[1];
-                    this.lastActiveApp = playerProps[1].url;
                     this.pause();
+                    this.lastActiveApp = playerProps[1].url;
+                    this.CurrentPlayer = playerProps[1];
+                    newActPl = playerProps[1];
+                    //reset player in case pausing takes too long
+                    setTimeout(() => this.CurrentPlayer = newActPl as ChromePlayer, 500);
                 }
             }
         }
+
         //TO-DO: Make difference between what lastActiveApp and what Applescript says --> implement this
 
         let activatePl: string = this.CurrentPlayer.url;
@@ -234,7 +239,7 @@ export class ChromeController {
         player = this.CurrentPlayer.url;
         player === '' ? player = this.CurrentPlayer.url : player = this.CurrentPlayer.url;
         //this.activeTab === this.playingSites[0] ? tab = encodeURIComponent(this.ActiveTab) : tab = encodeURIComponent(this.playingSites[0]);
-        //console.log('play', this.CurrentPlayer, this.playingSites);
+        console.log('play chrome', this.CurrentPlayer);
         let strings = ['osascript', chromeControlScptPath, 'play', this.CurrentPlayer.url];
         let playActiveTab = strings.join(' ');
         if (this.IsRunning == Running.True) {

@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { utility } from './utility/js/utility';
 import { Store } from './utility/js/store';
 import { Player, PlayerID } from './utility/js/interfaces';
-import { app, globalShortcut, ipcMain as ipc } from 'electron';
+import { app, globalShortcut, ipcMain as ipc, dialog } from 'electron';
 //@ts-ignore
 import * as MediaService from 'electron-media-service';
 import { extHandlers } from './index';
@@ -71,20 +71,31 @@ export class MediaKeyHandler {
     }
 
     get CurrentPlayer(): Player {
-        //@ts-ignore
-        let curPl: Player = {
-            id: '', title: '', playing: false, plObj: null
-        };
+        let curPl: Player;
+        if (!playersMap) {
+            console.log('no player');
+            this.DefaultPlayer = this.Store.get('player');
+            curPl = {
+                id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer)
+            };
+        } else {
+            //@ts-ignore
+            curPl = {
+                id: 'none', title: '', playing: false, plObj: null
+            };
+        }
         let maxDate: Date;
-        playersMap.forEach((val, key) => {
-            if (maxDate == null || val[0] > maxDate) {
-                maxDate = val[0];
-                let attr = val[1];
-                curPl = {
-                    id: key, title: attr.title, playing: attr.playing, plObj: attr.plObj
-                };
-            }
-        });
+        if (playersMap) {
+            playersMap.forEach((val, key) => {
+                if (maxDate == null || val[0] > maxDate) {
+                    maxDate = val[0];
+                    let attr = val[1];
+                    curPl = {
+                        id: key, title: attr.title, playing: attr.playing, plObj: attr.plObj
+                    };
+                }
+            });
+        }
         return curPl;
     }
 
@@ -92,28 +103,32 @@ export class MediaKeyHandler {
         if (_player.id) {
             playersMap.set(_player.id, [new Date(), { id: _player.id, title: _player.title, playing: _player.playing, plObj: _player.plObj }]);
         }
-        //playersMap.set(_player.id, { title: _player.title, playing: _player.playing, dualP: _player.dualP });
-        //console.log(`CurrentPlayer { id: ${this.CurrentPlayer.id}, playing: ${this.CurrentPlayer.playing}}`);
-        //console.log('');
+        console.log(`CurrentPlayer { id: ${this.CurrentPlayer.id}, playing: ${this.CurrentPlayer.playing}}`);
+        console.log('');
     }
 
     private keyListenerIni() {
         globalShortcut.register('MediaPlayPause', () => {
+            if (!this.evalHandlePlayer()) return;
             let player = this.CurrentPlayer.plObj;
             let state = player.IsPlaying;
             state === true ? player.pause() : player.play();
         });
         globalShortcut.register('MediaPreviousTrack', () => {
-            this.CurrentPlayer.plObj.previous();
+            const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.previous();
         });
         globalShortcut.register('MediaNextTrack', () => {
-            let pl = this.CurrentPlayer.plObj;
-            pl.next();
+            const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.next();
         });
         globalShortcut.register('command+F7', () => {
-            let pl = this.CurrentPlayer.plObj;
-            pl.activate();
+            const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.activate();
         });
+    }
+
+    showDialog(): void {
+        if (playersMap.size < 1) {
+            dialog.showErrorBox('No open player', '');
+        }
     }
 
     private init() {
@@ -123,48 +138,15 @@ export class MediaKeyHandler {
             this.listenerIni();
             this.keyListenerIni();
             this.eventListeners();
-            this.evalDefaultPlayer();
-            //this.logging();
+            this.updateMenuBar();
         });
 
         app.on('will-quit', () => {
             globalShortcut.unregisterAll();
         });
     }
-    //@ts-ignore
-    private logging() {
-        //@ts-ignore
-        let log = new Store({
-            configName: 'player-log',
-            defaults: {
-                /* playersMap: playersMap,
-                handlers: handlers */
-                mkh: this
-            }
-        });
-        console.log(this);
-        //log.set('mkh', this);
-        /*  setInterval(() => {
-             log.set('playersMap', playersMap);
-             log.set('handlers', handlers);
-         }, 2000); */
-    }
 
     private eventListeners() {
-        /**
-        * renew accelerator handle, when Google music app launches
-        */
-        /* this.gpmsh.Event.on('startup', () => {
-            this.reRegisterKeys();
-        }); */
-
-        /**
-        * renew accelerator handle, when spotify launches
-        */
-        /* this.ssh.Event.on('startup', () => {
-            this.reRegisterKeys();
-        }); */
-
         ipc.on('storeget', (event: any) => {
             this.DefaultPlayer = this.Store.get('player');
             if (!this.CurrentPlayer.playing || this.CurrentPlayer.id === ' ') {
@@ -185,7 +167,7 @@ export class MediaKeyHandler {
     private listenerIni() {
         handlerListener.setMaxListeners(150);
         handlerListener.on('playing', (message: Player) => {
-            let tempPlayer = { id: message.id, title: message.title || message.id, playing: message.playing, plObj: message.plObj };
+            let tempPlayer = { id: message.id, title: message.title, playing: message.playing, plObj: message.plObj };
             this.setPlayers(tempPlayer);
         });
 
@@ -205,22 +187,21 @@ export class MediaKeyHandler {
     }
 
     private setPlayers(player: Player, plAct?: boolean) {
-        if (player.id.includes('none')) {
-            return;
-        }
-        const activatePlayer = plAct; //!player.playing && this.CurrentPlayer.id !== player.id && !this.CurrentPlayer.playing;
+        if (player.id.includes('none')) return;
+
+        const activatePlayer = plAct;
         const newPlayer = this.CurrentPlayer.id !== player.id && player.playing;
         const stateChange = this.CurrentPlayer.playing !== player.playing && this.CurrentPlayer.id === player.id;
         const titleChanged = this.CurrentPlayer.id === player.id && this.CurrentPlayer.title !== player.title;
 
-        //console.log('player', player.id, 'activatePlayer', activatePlayer, 'newPlayer ', newPlayer, ' stateChange ', stateChange);
         if (stateChange || newPlayer || activatePlayer || titleChanged) {
+            this.CurrentPlayer = { id: player.id, title: player.title, playing: player.playing, plObj: player.plObj };
             if (player.playing) {
                 this.pause(player);
             }
             this.TouchbarItem = player.playing;
-            this.CurrentPlayer = { id: player.id, title: player.title, playing: player.playing, plObj: player.plObj };
             this.updateMenuBar();
+            this.Event.emit('notification');
         }
     }
 
@@ -245,25 +226,20 @@ export class MediaKeyHandler {
     }
 
     private pause(player: Player) {
-        //let currAppName = this.appName(player.id);
-        playersMap.forEach((_value: [Date, Player], key: PlayerID) => {
-            /* let appName = this.appName(key);
-            let pl = this.getPlayerObject(appName); */
-            if (key !== player.id) {
-                //important for tray icon
-                _value[1].playing = false;
-                if (_value[1].plObj !== player.plObj) _value[1].plObj.pause();
-            }
-        });
+        if (playersMap && playersMap.size > 1) {
+            playersMap.forEach((_value: [Date, Player], key: PlayerID) => {
+                if (key !== player.id) {
+                    //important for tray icon
+                    _value[1].playing = false;
+                    if (_value[1] && _value[1].plObj !== player.plObj) _value[1].plObj.pause();
+                }
+            });
+        }
         this.TouchbarItem = false;
     }
 
     private appName(playerName: string): string {
-        let appName = utility.extractAppName(playerName);
-        /* if (appName === 'none') {
-            appName = this.DefaultPlayer;
-        } */
-        return appName;
+        return utility.extractAppName(playerName);
     }
 
     private setDefaultPlayer() {
@@ -277,36 +253,36 @@ export class MediaKeyHandler {
         }
     }
 
-    private evalDefaultPlayer() {
-        setTimeout(() => {
-            this.DefaultPlayer = this.Store.get('player');
+    private evalHandlePlayer(): boolean {
+        this.DefaultPlayer = this.Store.get('player');
+        let playerRunning = true;
+        if (playersMap.size < 1) {
+            playerRunning = false;
             for (let h of handlers) {
-                if (h.IsRunning && !this.CurrentPlayer.playing) {
+                if (h.IsRunning) {
                     if (h.Name === this.DefaultPlayer) {
                         this.setDefaultPlayer();
+                        playerRunning = true;
                     } else if (h.Name !== 'Chrome') {
                         this.CurrentPlayer = { id: h.Name, title: h.title, playing: false, plObj: this.getPlayerObject(h.Name) };
+                        playerRunning = true;
                     }
                 }
             }
-        }, 1000);
+        }
+        //raise dialog if no player is running
+        if (!playerRunning) this.showDialog();
+        return playerRunning;
     }
 
     private playerQuit(_playerName: PlayerID) {
         if (playersMap.has(_playerName)) {
             playersMap.delete(_playerName);
             playersMap.forEach(pl => { if (pl[1].id !== this.CurrentPlayer.id) pl[1].playing = false; });
-        }
-
-        if (playersMap.size === 0) {
-            // tslint:disable-next-line:max-line-length
-            this.CurrentPlayer = { id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer) };
+            if (!this.CurrentPlayer.playing) this.TouchbarItem = false;
         }
         utility.printMap('playerQuit ', playersMap);
         this.updateMenuBar();
-        //let menbarPl = utility.extractAppName(_playerName);
-        /* if (!playersMap.has(_playerName) && menbarPl !== this.DefaultPlayer) {
-        } */
     }
     //Methods called from main.ts
 
@@ -314,27 +290,21 @@ export class MediaKeyHandler {
      * Raises player which is last(this.CurrentPlayer.id) in map
      */
     public activate(str?: string) {
-        //console.log('med key Current ', this.CurrentPlayer.id);
-        this.getPlayerObject(this.CurrentPlayer.id).activate(str);
+        const run = this.evalHandlePlayer() && this.getPlayerObject(this.CurrentPlayer.id).activate(str);
     }
 
     public getPlayersMap(): Map<PlayerID, [Date, Player]> {
         return playersMap;
     }
 
-    public changePlayer(playerName: string, playerTitle: string) {
-        let pl = { id: playerName, title: playerTitle, playing: false, plObj: this.getPlayerObject(playerName) };
+    public changePlayer(playerName: string, _playerTitle?: string) {
+        let pl = playersMap.get(playerName) as [Date, Player];
         this.CurrentPlayer.playing = false;
-        this.pause(pl);
-        this.setPlayers(pl, true);
+        this.pause(pl[1]);
+        this.setPlayers(pl[1], true);
         this.activate(playerName);
     }
     public updateMenuBar() {
-        /*  let playerName: string = name.split(':').pop() || name;
-         let playState = _state;
-         if (playerName === this.DefaultPlayer) {
-             playState = true;
-         } */
-        this.Event.emit('update', this.CurrentPlayer);
+        this.Event.emit('update');
     }
 }

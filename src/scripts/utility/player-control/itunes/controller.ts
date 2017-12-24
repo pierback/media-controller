@@ -11,10 +11,11 @@ const frontmostAppScptMac = path.join(__dirname, '..', '..', 'cmd', 'activateApp
 export class ItunesController {
     protected _isRunning: Running;
     protected _isPlaying: boolean;
+    protected _title: string;
     lastActiveApp: string;
     running: boolean;
 
-    private readonly onPlay = new LiteEvent<boolean>();
+    private readonly onPlay = new LiteEvent<any>();
     private readonly onRunning = new LiteEvent<boolean>();
 
     constructor() {
@@ -26,6 +27,14 @@ export class ItunesController {
 
     public get Playing() { return this.onPlay.expose(); }
     public get Running() { return this.onRunning.expose(); }
+
+    get Title(): string {
+        return this._title;
+    }
+
+    set Title(_title: string) {
+        this._title = _title;
+    }
 
     get IsPlaying(): boolean {
         return this._isPlaying;
@@ -56,22 +65,13 @@ export class ItunesController {
         helperProcess.on('message', (res: any) => {
             setTimeout(() => helperProcess.send(msg), 700);
             if (res === 'error' || res == null) { return; }
-            if (this.IsPlaying !== res.state) {
-                if (res.state) {
-                    this.IsPlaying = true;
-                    this.onPlay.trigger(true);
-                } else if (!res.state) {
-                    this.IsPlaying = false;
-                    this.onPlay.trigger(false);
-                }
-            }
-
-            if (res.running && this.IsRunning == 0) {
-                this.IsRunning = Running.True;
-                this.onRunning.trigger(true);
-            } else if (!res.running && this.IsRunning == 1) {
-                this.IsRunning = Running.False;
-                this.onRunning.trigger(false);
+            if (res.running !== this.IsRunning && res.running != null) {
+                this.IsRunning = res.running;
+                this.onRunning.trigger(res.running);
+            } else if (res.state != null && (this.IsPlaying !== res.state || res.title !== this.Title)) {
+                this.IsPlaying = res.state;
+                this.Title = res.title;
+                this.onPlay.trigger({ playing: res.state, title: res.title });
             }
         });
 

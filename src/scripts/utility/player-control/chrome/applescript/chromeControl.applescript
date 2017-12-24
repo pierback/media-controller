@@ -142,14 +142,13 @@ on netflixHandler(actionTab, playerAction, hturl, aturl)
 	tell application "Google Chrome"
 		if hturl is in aturl then
 			if playerAction is "play" then
-				execute actionTab javascript "document.querySelectorAll('.play')[0].click()"
+				--execute actionTab javascript "document.querySelectorAll('.play')[0].click()"
 				execute actionTab javascript "document.querySelector('video').play()"
 			else if playerAction is "next" then
-				set outro to execute actionTab javascript "document.querySelectorAll('.player-next-episode')[0]"
-				if outro is equal to {} then
-					execute actionTab javascript "document.querySelectorAll('.player-next-episode')[0].click()"
-				else
-					execute actionTab javascript "document.querySelectorAll('.postplay-still-container')[0].click()"
+				set skipIntro to execute actionTab javascript "document.querySelector('.skip-credits') ?  document.querySelector('.skip-credits>a').click() : false"
+				if skipIntro is false then
+					execute actionTab javascript "document.querySelectorAll('.button-nfplayerNextEpisode') ?  document.querySelectorAll('.button-nfplayerNextEpisode')[0].click()
+.click() : false"
 				end if
 			else if playerAction is "previous" then
 				execute actionTab javascript "document.querySelector('#lnk_prev_eps').click()"
@@ -170,6 +169,12 @@ on daznHandler(actionTab, playerAction, hturl, aturl)
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelector('video').play()"
+			else if playerAction is "next" then
+				execute actionTab javascript "document.querySelector('.RailTile.selected').nextSibling ? document.querySelector('.RailTile.selected').nextSibling.click() : 
+				(document.querySelector('.right').click(), setTimeout(() =>{ document.querySelector('.RailTile.selected') ? document.querySelector('.RailTile.selected').nextSibling.click() : false}, 100))"
+			else if playerAction is "previous" then
+				execute actionTab javascript "document.querySelector('.RailTile.selected').previousSibling ? document.querySelector('.RailTile.selected').previousSibling.click() : 
+				(document.querySelector('.left').click(), setTimeout(() =>{ document.querySelector('.RailTile.selected').previousSibling ? document.querySelector('.RailTile.selected').previousSibling.click() : false }, 100))"
 			end if
 		else
 			if playerAction is "pause" then
@@ -282,7 +287,7 @@ on run (input)
 		set lastActiveApp to lastActiveApp & " " & item 5 of input
 	end try
 	
-
+	
 	
 	set actionSet to {"play", "pause", "next", "previous"}
 	

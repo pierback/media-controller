@@ -83,13 +83,15 @@ export class ChromeController {
             id: -1, title: '', playing: false, url: ''
         };
         let maxDate: Date;
-        playerMap.forEach((val, key) => {
-            if (maxDate == null || val[0] > maxDate) {
-                maxDate = val[0];
-                let attr = val[1];
-                curPl = { id: key, title: attr.title, playing: attr.playing, url: attr.url };
-            }
-        });
+        if (playerMap) {
+            playerMap.forEach((val, key) => {
+                if (maxDate == null || val[0] > maxDate) {
+                    maxDate = val[0];
+                    let attr = val[1];
+                    curPl = { id: key, title: attr.title, playing: attr.playing, url: attr.url };
+                }
+            });
+        }
         return curPl;
     }
 
@@ -97,94 +99,93 @@ export class ChromeController {
         let plVal: [Date, ChromePlayer];
         plVal = [new Date(), { id: player.id || this.CurrentPlayer.id, title: player.title, playing: player.playing, url: player.url }];
         if (plVal[1] && plVal[1].id > -1) playerMap.set(plVal[1].id, plVal);
-
-        utility.printMap('Chrome ', playerMap);
-        console.log('');
+        /*  utility.printMap('Chrome ', playerMap);
+         console.log(''); */
     }
 
     checkTabs(result: ChromeObj): void {
-        const tempMap = new Map(
-            result.sites.map(x => [x.id, [new Date(), x]] as [number, [Date, ChromePlayer]])
-        );
-        if (this.PlayingSites) {
-            this.PlayingSites.forEach((val, key) => {
-                const found = tempMap.get(key);
-                if (!found) {
-                    this.onRunning.trigger({ title: val[1].title, id: key, running: false });
-                    playerMap.delete(key);
-                    console.log('deleted', val[1].title, ' new player', this.CurrentPlayer.title);
-                }
-            });
+        if (result && !result.error) {
+            const tempMap = new Map(
+                result.sites && result.sites.map(x => [x.id, [new Date(), x]] as [number, [Date, ChromePlayer]])
+            );
+            if (this.PlayingSites && tempMap) {
+                this.PlayingSites.forEach((val, key) => {
+                    const found = tempMap.get(key);
+                    if (!found) {
+                        this.onRunning.trigger({ title: val[1].title, id: key, running: false });
+                        playerMap.delete(key);
+                    }
+                });
+            }
+            this.PlayingSites = tempMap;
         }
-        this.PlayingSites = tempMap;
     }
-
     playstate() {
-        let helperProcess: cp.ChildProcess = utility.fork();
+        const helperProcess: cp.ChildProcess = utility.fork();
         let msg = { bin: '', args: '' };
         if (process.platform == 'darwin') {
             msg.bin = 'osascript';
             msg.args = chromePlStateScptPath;
         }
-        if (!msg.bin) { return; }
+        if (!msg.bin) { this.onRunning.trigger({ running: false }); return; }
         helperProcess.send(msg);
 
         helperProcess.on('message', (result: ChromeObj) => {
-            if (result.error === 'error' || result == null) {
-                helperProcess.unref();
-                helperProcess.kill();
-                this.playstate();
-                return;
-            }
-            setTimeout(() => helperProcess.send(msg), 500);
-            let tempRun = utility.convertToRunningType(result.isRunning);
-            if (tempRun == Running.True) {
-                this.checkTabs(result);
-                if (this.playerStateChanged(result)) {
-                    this.onPlay.trigger(this.CurrentPlayer);
-                }
-                this.IsRunning = tempRun;
-            } else if (this.IsRunning !== tempRun) {
-                this.IsRunning = Running.Unknown;
-            }
+            //if (result.error === 'error' || result == null) restartHelper();
+            this.checkTabs(result);
+            sendMsg();
+            this.IsRunning = utility.convertToRunningType(result.isRunning);
+            const run = this.playerStateChanged(result) && this.onPlay.trigger(this.CurrentPlayer);
         });
 
+        const sendMsg = () => setTimeout(() => helperProcess.send(msg), 500);
+
+        const restartHelper = () => {
+            helperProcess.unref();
+            helperProcess.kill();
+            setTimeout(() => this.playstate(), 5000);
+        };
+
         helperProcess.on('error', (_err: any) => {
-            console.log('error chrome helper');
-            helperProcess.send(msg);
+            console.log('error');
+            sendMsg();
         });
     }
 
     playerStateChanged(result: ChromeObj) {
-        const curPl = this.PlayingSites.get(this.CurrentPlayer.id);
-        //@ts-ignore
-        const noHandleTab = !result.handleTab.id && curPl && this.CurrentPlayer.playing !== curPl[1].playing;
-        const samePlayer = result.handleTab.id && this.CurrentPlayer.id === result.handleTab.id;
-        const playingChanged = samePlayer && this.CurrentPlayer.playing !== result.handleTab.playing;
-        const titleChanged = samePlayer && this.CurrentPlayer.title !== result.handleTab.title;
+        if (result.isRunning && !result.error) {
+            const curPl = this.PlayingSites.get(this.CurrentPlayer.id);
+            //@ts-ignore
+            const noHandleTab = !result.handleTab.id && curPl && this.CurrentPlayer.playing !== curPl[1].playing;
+            const samePlayer = result.handleTab.id && this.CurrentPlayer.id === result.handleTab.id;
+            const playingChanged = samePlayer && this.CurrentPlayer.playing !== result.handleTab.playing;
+            const titleChanged = samePlayer && this.CurrentPlayer.title !== result.handleTab.title;
 
-        const stateChanged = noHandleTab || playingChanged || titleChanged;
+            const stateChanged = noHandleTab || playingChanged || titleChanged;
 
-        if (stateChanged) {
-            console.log('noHandleTab', noHandleTab, 'playingChanged', playingChanged, 'titleChanged', titleChanged);
-            if (noHandleTab) {
-                //@ts-ignore
-                this.CurrentPlayer = curPl[1];
-            } else {
-                this.CurrentPlayer = result.handleTab;
+            if (stateChanged) {
+                if (noHandleTab) {
+                    //@ts-ignore
+                    this.CurrentPlayer = curPl[1];
+                } else {
+                    this.CurrentPlayer = result.handleTab;
+                }
             }
-        }
 
-        const differentPlayerId = (id: number) => this.CurrentPlayer.id !== id;
-        const handleTabPlaying = result.handleTab.playing;
-        const resultSitesPlaying = result.sites.forEach((v) => { return v.playing && differentPlayerId(v.id); });
-        const newPlayer = differentPlayerId(result.handleTab.id) && handleTabPlaying || resultSitesPlaying;
-        if (newPlayer) {
-            playerMap.forEach(v => v[1].playing = false);
-            this.CurrentPlayer = result.handleTab;
-            this.pause(this.CurrentPlayer.url);
+            const differentPlayerId = (id: number) => this.CurrentPlayer.id !== id;
+            const handleTabPlaying = result.handleTab.playing;
+            const resSitesPlayer = result.sites && result.sites.filter((v) => v.playing && differentPlayerId(v.id));
+            const newPlayer = differentPlayerId(result.handleTab.id) && handleTabPlaying || (resSitesPlayer && resSitesPlayer.length > 0);
+
+            if (newPlayer) {
+                playerMap.forEach(v => v[1].playing = false);
+                result.handleTab ? this.CurrentPlayer = result.handleTab : this.CurrentPlayer = resSitesPlayer[0];
+                this.pause(this.CurrentPlayer.url);
+            }
+            return stateChanged || newPlayer;
+        } else {
+            return false;
         }
-        return stateChanged || newPlayer;
     }
 
     /**
@@ -236,7 +237,6 @@ export class ChromeController {
         //console.log('play', this.CurrentPlayer, this.playingSites);
         let strings = ['osascript', chromeControlScptPath, 'play', this.CurrentPlayer.url];
         let playActiveTab = strings.join(' ');
-        console.log('paly', playActiveTab);
         if (this.IsRunning == Running.True) {
             utility.execCmd(playActiveTab);
         }

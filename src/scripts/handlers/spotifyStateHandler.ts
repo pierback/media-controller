@@ -69,14 +69,14 @@ export class SpotifyStateHandler implements HandlerInterface {
 
     checkPlaystate() {
         spotify.Playing.on((data: any) => {
-            this.IsPlaying = data;
-            const player: Player = { id: this.Name, title: this.Name, playing: data, plObj: this };
+            const player: Player = { id: this.Name, title: `${this.Name}: ${data.title}`, playing: data.playing, plObj: this };
             this.Event.emit('playing', player);
+            this.IsPlaying = data.playing;
         });
         //@ts-ignore
         spotify.Running.on((isRunning: boolean) => {
             this.IsRunning = utility.convertToRunningType(isRunning);
-            this.Event.emit('running', { id: this.Name, running: isRunning, _dualP: false });
+            if (!isRunning) this.Event.emit('running', { id: this.Name, running: isRunning });
         });
     }
 

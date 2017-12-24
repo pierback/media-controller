@@ -1,5 +1,5 @@
 'use strict';
-import { app, Menu, Tray, nativeImage, BrowserWindow, MenuItem } from 'electron';
+import { app, Menu, Tray, nativeImage, Notification, BrowserWindow, MenuItem } from 'electron';
 import * as electron from 'electron';
 import { EventEmitter } from 'events';
 import { MediaKeyHandler } from '../scripts/mediaKeyHandler';
@@ -7,6 +7,13 @@ import { Player } from '../scripts/utility/js/interfaces';
 
 const mkh = new MediaKeyHandler(EventEmitter);
 let tray: Electron.Tray;
+
+mkh.Event.on('update', (options: any) => {
+  createTrayIcon();
+});
+mkh.Event.on('notification', () => {
+  createNotification();
+});
 
 function createWindow() {
   let displays = electron.screen.getAllDisplays();
@@ -18,59 +25,88 @@ function createWindow() {
   window.loadURL(`file://${__dirname}/index.html`);
 }
 
-function PlayersMap(): Map<string, [Date, Player]> {
+const PlayersMap = (): Map<string, [Date, Player]> => {
   return mkh.getPlayersMap();
+};
+
+const natImage = (): nativeImage => {
+  let image = null;
+  let icon = null;
+
+  if (!mkh.CurrentPlayer.playing) {
+    icon = `${__dirname}/../assets/play.png`;
+  } else {
+    icon = `${__dirname}/../assets/pause.png`;
+  }
+  image = nativeImage.createFromPath(icon);
+  image.setTemplateImage(true);
+  return image;
+};
+
+function createNotification() {
+  let player = mkh.CurrentPlayer;
+  if (player.id) {
+    let myNotification = new Notification({
+      title: player.title.split(':').shift() || player.id,
+      body: player.title.split(':').pop() || player.title,
+      silent: true
+    });
+    myNotification.show();
+  }
 }
 
-mkh.Event.on('update', () => {
-  createTrayIcon();
-});
-
-//@ts-ignore
-const text_truncate = function (str, length, ending) {
+const fixTextLength = (str: string, length: number, ending: string): string => {
   if (length == null) {
     length = 100;
   }
   if (ending == null) {
     ending = '...';
   }
-  if (str.length > length) {
-    return str.substring(0, length - ending.length) + ending;
-  } else {
-    return str;
+  if (str) {
+    if (str.length > length) {
+      return str.substring(0, length - ending.length) + ending;
+    } else if (str.length < length) {
+      return str + ' '.repeat(length - str.length);
+    }
   }
+  return str;
 };
 
 function updateMenuBar() {
   const separator: Electron.MenuItemConstructorOptions = { type: 'separator' };
   const prefs: Electron.MenuItemConstructorOptions = {
-    label: 'Preferences', click: () => {
-      createWindow();
-    }
+    label: 'Preferences', click: () => { createWindow(); }
   };
   const quit: Electron.MenuItemConstructorOptions = {
-    label: 'Quit', click: () => {
-      app.quit();
-    }
+    label: 'Quit', click: () => { app.quit(); }
   };
 
   let contextMenu = new Menu();
   if (contextMenu) {
-    for (let ap of PlayersMap().keys()) {
-      //@ts-ignore
-      let itemAttr: [Date, Player] = PlayersMap().get(ap);
-      let curPlayer = ap === mkh.CurrentPlayer.id;
-      let title = text_truncate(itemAttr[1].title, 30, '...');
+    if (PlayersMap().size > 0) {
+      for (let plId of PlayersMap().keys()) {
+        //@ts-ignore
+        let itemAttr: [Date, Player] = PlayersMap().get(plId);
+        let curPlayer = plId === mkh.CurrentPlayer.id;
+        let title = fixTextLength(itemAttr[1].title, 30, '...');
 
-      let newItem: Electron.MenuItemConstructorOptions = {
-        label: title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {
-          for (let item of contextMenu.items) {
-            item.checked = false;
+        let newItem: Electron.MenuItemConstructorOptions = {
+          label: title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {
+            for (let item of contextMenu.items) {
+              item.checked = false;
+            }
+            menuItem.checked = true;
+            mkh.changePlayer(plId, itemAttr[1].title);
           }
-          menuItem.checked = true;
-          mkh.changePlayer(ap, itemAttr[1].title);
-        }
+        };
+        let menuIt = new MenuItem(newItem);
+        contextMenu.append(menuIt);
+      }
+    } else {
+      let newItem: Electron.MenuItemConstructorOptions = {
+        label: 'No open players'
       };
+      newItem.enabled = false;
       let menuIt = new MenuItem(newItem);
       contextMenu.append(menuIt);
     }
@@ -91,22 +127,10 @@ function updateMenuBar() {
 
 function createTrayIcon(_state?: any) {
   if (process.platform === 'darwin') { app.dock.hide(); }
-  let image = null;
-  let icon = null;
-
-  if (!mkh.CurrentPlayer.playing) {
-    icon = `${__dirname}/../assets/play.png`;
-  } else {
-    icon = `${__dirname}/../assets/pause.png`;
-  }
-
-  image = nativeImage.createFromPath(icon);
-  image.setTemplateImage(true);
-
   if (!tray) {
-    tray = new Tray(image);
+    tray = new Tray(natImage());
   } else {
-    tray.setImage(image); //
+    tray.setImage(natImage()); //
   }
   tray.on('right-click', function () {
     tray.popUpContextMenu();
@@ -115,8 +139,6 @@ function createTrayIcon(_state?: any) {
   if (!mkh.Store.get('player')) {
     createWindow();
   } else {
-    //@ts-ignore
-    let temp: string = mkh.Store.get('player');
     updateMenuBar();
   }
 }

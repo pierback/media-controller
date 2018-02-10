@@ -49,8 +49,10 @@
     }
   },
   "dependencies": {
+    "electron-compile": "^6.4.2",
     "electron-media-service": "^0.2.2",
-    "electron-compile": "^6.4.2"
+    "pidusage": "^1.2.0",
+    "sonos": "^0.22.2"
   },
   "devDependencies": {
     "@types/electron": "^1.4.30",

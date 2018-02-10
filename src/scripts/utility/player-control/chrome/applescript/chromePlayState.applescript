@@ -1,4 +1,4 @@
-set wbs to {"btprt.dj","soundcloud.com", "www.youtube.com", "www.dazn.com", "www.netflix.com", "www.beatport.com", "be-at.tv", "www.skygo.sky.de", "open.spotify.com"} --"www.facebook.com"
+set wbs to {"btprt.dj", "soundcloud.com", "www.youtube.com", "www.dazn.com", "www.netflix.com", "www.beatport.com", "be-at.tv", "www.skygo.sky.de", "open.spotify.com"} --"www.facebook.com"
 set playingObj to {{}}
 set sites to {}
 set play to false
@@ -89,7 +89,7 @@ if get running of application "Google Chrome" is true then
 							copy json's createDictWith({{"id", id of t}, {"title", "Netflix: " & pTitle}, {"url", actUrl}, {"playing", playing}}) to end of sites
 						end if
 					else if (actHost is equal to "www.beatport.com") then --"btprt.dj" or
-						set playing to execute t javascript "document.querySelector('.play-button.play') ? document.querySelector('.play-button.play') === null : false"
+						set playing to execute t javascript "document.querySelector('.pause') ? document.querySelector('.play') === null : false"
 						set ready to execute t javascript "document.readyState"
 						set primaryTitle to execute t javascript "document.querySelector('.primary-title') ? document.querySelector('.primary-title').textContent : ' '"
 						set remixed to execute t javascript "document.querySelector('.remixed') ? document.querySelector('.remixed').textContent : ' ' "
@@ -103,6 +103,10 @@ if get running of application "Google Chrome" is true then
 							end if
 							copy json's createDictWith({{"id", id of t}, {"title", pTitle}, {"url", actUrl}, {"playing", playing}}) to end of sites
 						end if
+					else if (actHost is equal to "btprt.dj") then 		
+						set ready to execute t javascript "document.readyState"
+						execute t javascript "document.querySelector('iframe') !== null ? window.location = document.querySelector('iframe').src : 0;"
+						execute t javascript "console.log('bla')"
 					else if ("www.skygo.sky.de" is equal to actHost) then
 						set playing to execute t javascript "document.querySelector('video') ? !document.querySelector('video').paused : false"
 						set ready to execute t javascript "document.readyState"

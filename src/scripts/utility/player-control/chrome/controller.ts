@@ -126,26 +126,23 @@ export class ChromeController {
         if (process.platform == 'darwin') {
             msg.bin = 'osascript';
             msg.args = chromePlStateScptPath;
-        }
-        if (!msg.bin) { this.onRunning.trigger({ running: false }); return; }
+        } else { this.onRunning.trigger({ running: false }); return; }
+        let timeout: any;
         helperProcess.send(msg);
-
         helperProcess.on('message', (result: ChromeObj) => {
-            //if (result.error === 'error' || result == null) restartHelper();
+
+            if (timeout) clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                console.log('Chrome dauert zu lange');
+                helperProcess.disconnect();
+            }, 10000);
             this.checkTabs(result);
             sendMsg();
             this.IsRunning = utility.convertToRunningType(result.isRunning);
-            const run = this.playerStateChanged(result) && this.onPlay.trigger(this.CurrentPlayer);
+            this.playerStateChanged(result) && this.onPlay.trigger(this.CurrentPlayer);
         });
 
         const sendMsg = () => setTimeout(() => helperProcess.send(msg), 500);
-
-        const restartHelper = () => {
-            helperProcess.unref();
-            helperProcess.kill();
-            setTimeout(() => this.playstate(), 5000);
-        };
-
         helperProcess.on('error', (_err: any) => {
             console.log('error');
             sendMsg();
@@ -239,7 +236,6 @@ export class ChromeController {
         player = this.CurrentPlayer.url;
         player === '' ? player = this.CurrentPlayer.url : player = this.CurrentPlayer.url;
         //this.activeTab === this.playingSites[0] ? tab = encodeURIComponent(this.ActiveTab) : tab = encodeURIComponent(this.playingSites[0]);
-        console.log('play chrome', this.CurrentPlayer);
         let strings = ['osascript', chromeControlScptPath, 'play', this.CurrentPlayer.url];
         let playActiveTab = strings.join(' ');
         if (this.IsRunning == Running.True) {

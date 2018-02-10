@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { utility } from './utility/js/utility';
 import { Store } from './utility/js/store';
 import { Player, PlayerID } from './utility/js/interfaces';
-import { app, globalShortcut, ipcMain as ipc, dialog } from 'electron';
+import { app, globalShortcut, ipcMain as ipc, dialog, Notification } from 'electron';
 //@ts-ignore
 import * as MediaService from 'electron-media-service';
 import { extHandlers } from './index';
@@ -73,7 +73,6 @@ export class MediaKeyHandler {
     get CurrentPlayer(): Player {
         let curPl: Player;
         if (!playersMap) {
-            console.log('no player');
             this.DefaultPlayer = this.Store.get('player');
             curPl = {
                 id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer)
@@ -81,7 +80,7 @@ export class MediaKeyHandler {
         } else {
             //@ts-ignore
             curPl = {
-                id: 'none', title: '', playing: false, plObj: null
+                id: 'none', title: 'none', playing: false, plObj: null
             };
         }
         let maxDate: Date;
@@ -100,28 +99,30 @@ export class MediaKeyHandler {
     }
 
     set CurrentPlayer(_player: Player) {
-        if (_player.id) {
+        if (_player.id && _player.id !== 'none') {
             playersMap.set(_player.id, [new Date(), { id: _player.id, title: _player.title, playing: _player.playing, plObj: _player.plObj }]);
         }
-        console.log(`CurrentPlayer { id: ${this.CurrentPlayer.id}, playing: ${this.CurrentPlayer.playing}}`);
+        console.log(`CurrentPlayer { id: ${this.CurrentPlayer.id}, title: ${this.CurrentPlayer.title},  playing: ${this.CurrentPlayer.playing}}`);
         console.log('');
     }
 
-    private keyListenerIni() {
+    private keyListenerIni(): void {
         globalShortcut.register('MediaPlayPause', () => {
-            if (!this.evalHandlePlayer()) return;
-            let player = this.CurrentPlayer.plObj;
-            console.log('play pause', playersMap, this.CurrentPlayer.playing);
-            this.CurrentPlayer.playing ? player.pause() : player.play();
+            const player = this.CurrentPlayer.plObj;
+            if (this.evalHandlePlayer()) {
+                this.CurrentPlayer.playing ? player.pause() : player.play();
+                console.log('set');
+                this.setPlayers(this.CurrentPlayer, !this.CurrentPlayer.playing);
+            }
         });
         globalShortcut.register('MediaPreviousTrack', () => {
-            const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.previous();
+            this.evalHandlePlayer() && this.CurrentPlayer.plObj.previous();
         });
         globalShortcut.register('MediaNextTrack', () => {
-            const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.next();
+            this.evalHandlePlayer() && this.CurrentPlayer.plObj.next();
         });
         globalShortcut.register('command+F7', () => {
-            const run = this.evalHandlePlayer() && this.CurrentPlayer.plObj.activate();
+            this.evalHandlePlayer() && this.CurrentPlayer.plObj.activate();
         });
     }
 
@@ -131,7 +132,7 @@ export class MediaKeyHandler {
         }
     }
 
-    private init() {
+    private init(): void {
         this.Store = '';
         myService.startService();
         app.on('ready', () => {
@@ -139,6 +140,21 @@ export class MediaKeyHandler {
             this.keyListenerIni();
             this.eventListeners();
             this.updateMenuBar();
+
+            let _value = 'joooo';
+
+            let myNotification = new Notification({
+                title: 'test',
+                body: `Wanna Pause ${_value}`,
+                silent: true,
+                hasReply: true
+            });
+
+            myNotification.on('click', () => {
+                console.log('Notification clicked');
+            });
+
+            myNotification.show();
         });
 
         app.on('will-quit', () => {
@@ -146,7 +162,7 @@ export class MediaKeyHandler {
         });
     }
 
-    private eventListeners() {
+    private eventListeners(): void {
         ipc.on('storeget', (event: any) => {
             this.DefaultPlayer = this.Store.get('player');
             if (!this.CurrentPlayer.playing || this.CurrentPlayer.id === ' ') {
@@ -158,15 +174,15 @@ export class MediaKeyHandler {
             this.Store.set('player', data.data);
             this.DefaultPlayer = data.data;
             if (!this.CurrentPlayer.playing) {
-                //this.updateMenuBar(data.mb);
                 this.CurrentPlayer.id = this.DefaultPlayer;
             }
         });
     }
 
-    private listenerIni() {
+    private listenerIni(): void {
         handlerListener.setMaxListeners(150);
         handlerListener.on('playing', (message: Player) => {
+            console.log('playing', message.id);
             let tempPlayer = { id: message.id, title: message.title, playing: message.playing, plObj: message.plObj };
             this.setPlayers(tempPlayer);
         });
@@ -186,7 +202,7 @@ export class MediaKeyHandler {
         }
     }
 
-    private setPlayers(player: Player, plAct?: boolean) {
+    private setPlayers(player: Player, plAct?: boolean): void {
         if (player.id.includes('none')) return;
 
         const activatePlayer = plAct;
@@ -196,17 +212,16 @@ export class MediaKeyHandler {
 
         if (stateChange || newPlayer || activatePlayer || titleChanged) {
             this.CurrentPlayer = { id: player.id, title: player.title, playing: player.playing, plObj: player.plObj };
-            if (player.playing) {
-                this.pause(player);
-            }
+            newPlayer /* || activatePlayer || titleChanged */ && this.Event.emit('notification');
+            console.log('new player ', newPlayer, 'activateplayer', activatePlayer);
+            if (player.playing && newPlayer) this.pause(player);
             this.TouchbarItem = player.playing;
             this.updateMenuBar();
-            this.Event.emit('notification');
         }
     }
 
     //@ts-ignore
-    private reRegisterKeys() {
+    private reRegisterKeys(): void {
         globalShortcut.unregisterAll();
         console.log('reregister');
         this.keyListenerIni();
@@ -225,13 +240,28 @@ export class MediaKeyHandler {
         console.log('no player found');
     }
 
-    private pause(player: Player) {
+    private pause(player: Player): void {
         if (playersMap && playersMap.size > 1) {
             playersMap.forEach((_value: [Date, Player], key: PlayerID) => {
                 if (key !== player.id) {
                     //important for tray icon
-                    _value[1].playing = false;
-                    if (_value[1] && _value[1].plObj !== player.plObj) _value[1].plObj.pause();
+                    let decision = true;
+                    if (_value[1].playing) {
+                        const options: Electron.MessageBoxOptions = {
+                            title: 'Pause?',
+                            message: 'Pause old player',
+                            buttons: ['No', 'Yes']
+                        };
+                        dialog.showMessageBox(options, (num) => {
+                            console.log('number clicked', num);
+                            if (num === 0) {
+                                decision = false;
+                            }
+                        });
+                    }
+                    if (_value[1] && _value[1].plObj !== player.plObj && decision)
+                        _value[1].plObj.pause();
+                    //_value[1] && _value[1].plObj !== player.plObj ? _value[1].plObj.pause() : 0;
                 }
             });
         }
@@ -242,7 +272,7 @@ export class MediaKeyHandler {
         return utility.extractAppName(playerName);
     }
 
-    private setDefaultPlayer() {
+    private setDefaultPlayer(): void {
         this.DefaultPlayer = this.Store.get('player');
         if (this.DefaultPlayer && !this.getPlayerObject(this.DefaultPlayer).IsPlaying) {
             // tslint:disable-next-line:max-line-length
@@ -256,6 +286,8 @@ export class MediaKeyHandler {
     private evalHandlePlayer(): boolean {
         this.DefaultPlayer = this.Store.get('player');
         let playerRunning = true;
+        let curPl;
+        let defaultSet = false;
         if (playersMap.size < 1) {
             playerRunning = false;
             for (let h of handlers) {
@@ -263,25 +295,30 @@ export class MediaKeyHandler {
                     if (h.Name === this.DefaultPlayer) {
                         this.setDefaultPlayer();
                         playerRunning = true;
+                        defaultSet = true;
                     } else if (h.Name !== 'Chrome') {
-                        this.CurrentPlayer = { id: h.Name, title: h.title, playing: false, plObj: this.getPlayerObject(h.Name) };
+                        curPl = { id: h.Name, title: h.title, playing: false, plObj: this.getPlayerObject(h.Name) };
                         playerRunning = true;
                     }
                 }
             }
+            if (!defaultSet && curPl) {
+                this.CurrentPlayer = curPl as Player;
+            }
+            //raise dialog if no player is running
+            if (!playerRunning) this.showDialog();
         }
-        //raise dialog if no player is running
-        if (!playerRunning) this.showDialog();
         return playerRunning;
     }
 
-    private playerQuit(_playerName: PlayerID) {
+    private playerQuit(_playerName: PlayerID): void {
         if (playersMap.has(_playerName)) {
             playersMap.delete(_playerName);
             playersMap.forEach(pl => { if (pl[1].id !== this.CurrentPlayer.id) pl[1].playing = false; });
             if (!this.CurrentPlayer.playing) this.TouchbarItem = false;
         }
         utility.printMap('playerQuit ', playersMap);
+        console.log(_playerName);
         this.updateMenuBar();
     }
     //Methods called from main.ts
@@ -289,15 +326,15 @@ export class MediaKeyHandler {
     /**
      * Raises player which is last(this.CurrentPlayer.id) in map
      */
-    public activate(player: Player) {
-        const run = this.evalHandlePlayer() && player.plObj.activate(player.id);
+    public activate(player: Player): void {
+        this.evalHandlePlayer() && player.plObj.activate(player.id);
     }
 
     public getPlayersMap(): Map<PlayerID, [Date, Player]> {
         return playersMap;
     }
 
-    public changePlayer(playerName: string, _playerTitle?: string) {
+    public changePlayer(playerName: string, _playerTitle?: string): void {
         let pl = playersMap.get(playerName) as [Date, Player];
         this.pause(pl[1]);
         this.activate(pl[1]);

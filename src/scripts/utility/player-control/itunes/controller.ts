@@ -61,11 +61,18 @@ export class ItunesController {
         }
         if (!msg.bin) { this.onPlay.trigger(false); return; }
         helperProcess.send(msg);
+        let timeout: any;
 
         helperProcess.on('message', (res: any) => {
+            if (timeout) clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                console.log('dauert zu lange itunes');
+                //helperProcess.disconnect();
+            }, 10000);
             setTimeout(() => helperProcess.send(msg), 700);
             if (res === 'error' || res == null) { return; }
             if (res.running !== this.IsRunning && res.running != null) {
+                console.log('itunes ', res);
                 this.IsRunning = res.running;
                 this.onRunning.trigger(res.running);
             } else if (res.state != null && (this.IsPlaying !== res.state || res.title !== this.Title)) {

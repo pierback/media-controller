@@ -8,21 +8,15 @@ set state to false
 set appIsrunning to false
 set trackTitle to ""
 
-on IsPlaying()
-	tell application "iTunes"
-		return player state
-	end tell
-end IsPlaying
-
-
 if get running of application "iTunes" is true then
 	tell application "iTunes"
-		if not (exists current track) then return null
+		if (exists current track) then
+			set trackId to (get name of current track)
+			set trackArtist to (get artist of current track)
+			set trackAlbum to (get album of current track)
+			set trackTitle to trackArtist & " - " & trackId
+		end if
 		if player state is playing then set state to true
-		set trackId to (get name of current track)
-		set trackArtist to (get artist of current track)
-		set trackAlbum to (get album of current track)
-		set trackTitle to trackArtist & " - " & trackId
 	end tell
 	set appIsrunning to true
 else

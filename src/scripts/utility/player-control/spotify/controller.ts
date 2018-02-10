@@ -71,8 +71,14 @@ export class SpotifyController {
         }
         if (!msg.bin) { this.onPlay.trigger(false); return; }
         helperProcess.send(msg);
+        let timeout: any;
 
         helperProcess.on('message', (res: any) => {
+            if (timeout) clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                console.log('dauert zu lange');
+                helperProcess.disconnect();
+            }, 10000);
             setTimeout(() => helperProcess.send(msg), 700);
             if (res === 'error' || res == null) return;
             if (res.running !== this.IsRunning && res.running != null) {

@@ -149,7 +149,6 @@ function updateMenuBar() {
         let itemAttr: [Date, Player] = PlayersMap().get(plId);
         let curPlayer = plId === mkh.CurrentPlayer.id;
         let title = fixTextLength(itemAttr[1].title, 30, '...');
-        console.log(plId);
         if (itemAttr[1].title !== 'none') {
           let newItem: Electron.MenuItemConstructorOptions = {
             label: title, checked: curPlayer, type: 'radio', click: (menuItem: MenuItem) => {

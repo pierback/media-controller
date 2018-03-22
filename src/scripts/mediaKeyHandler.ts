@@ -111,7 +111,6 @@ export class MediaKeyHandler {
             const player = this.CurrentPlayer.plObj;
             if (this.evalHandlePlayer()) {
                 this.CurrentPlayer.playing ? player.pause() : player.play();
-                console.log('set');
                 this.setPlayers(this.CurrentPlayer, !this.CurrentPlayer.playing);
             }
         });
@@ -140,21 +139,6 @@ export class MediaKeyHandler {
             this.keyListenerIni();
             this.eventListeners();
             this.updateMenuBar();
-
-            let _value = 'joooo';
-
-            let myNotification = new Notification({
-                title: 'test',
-                body: `Wanna Pause ${_value}`,
-                silent: true,
-                hasReply: true
-            });
-
-            myNotification.on('click', () => {
-                console.log('Notification clicked');
-            });
-
-            myNotification.show();
         });
 
         app.on('will-quit', () => {
@@ -182,9 +166,12 @@ export class MediaKeyHandler {
     private listenerIni(): void {
         handlerListener.setMaxListeners(150);
         handlerListener.on('playing', (message: Player) => {
-            console.log('playing', message.id);
             let tempPlayer = { id: message.id, title: message.title, playing: message.playing, plObj: message.plObj };
-            this.setPlayers(tempPlayer);
+            const ignorePauseEvent = message.playing === false && this.CurrentPlayer.playing && message.id !== this.CurrentPlayer.id;
+            //ignorePauseEvent && console.log('player event', message.id, message.playing, );
+            if (!ignorePauseEvent)
+                this.setPlayers(tempPlayer);
+
         });
 
         handlerListener.on('running', (message: any) => {
@@ -201,9 +188,11 @@ export class MediaKeyHandler {
             h.init();
         }
     }
+    videoPlayers: String[] = ['skygo', 'dazn', 'youtube'];
 
-    private setPlayers(player: Player, plAct?: boolean): void {
+    private async setPlayers(player: Player, plAct?: boolean) {
         if (player.id.includes('none')) return;
+
 
         const activatePlayer = plAct;
         const newPlayer = this.CurrentPlayer.id !== player.id && player.playing;
@@ -211,13 +200,53 @@ export class MediaKeyHandler {
         const titleChanged = this.CurrentPlayer.id === player.id && this.CurrentPlayer.title !== player.title;
 
         if (stateChange || newPlayer || activatePlayer || titleChanged) {
+            const oldPlayer = this.CurrentPlayer;
             this.CurrentPlayer = { id: player.id, title: player.title, playing: player.playing, plObj: player.plObj };
-            newPlayer /* || activatePlayer || titleChanged */ && this.Event.emit('notification');
-            console.log('new player ', newPlayer, 'activateplayer', activatePlayer);
-            if (player.playing && newPlayer) this.pause(player);
+
+            if (player.playing && newPlayer) {
+                if (!this.videoPlayers.includes(oldPlayer.title.split(':').shift().toLowerCase()))
+                    this.pause(player).then((newPlayer) => {
+                        if (!newPlayer) {
+                            this.CurrentPlayer = oldPlayer;
+                        } else if (newPlayer) { this.Event.emit('notification'); }//newPlayer /* || activatePlayer || titleChanged */ && this.Event.emit('notification'); }
+                    });
+            }
             this.TouchbarItem = player.playing;
             this.updateMenuBar();
         }
+    }
+
+    private pause(player: Player): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            if (playersMap && playersMap.size > 1) {
+                playersMap.forEach((_value: [Date, Player], key: PlayerID) => {
+                    if (key !== player.id) {
+                        //important for tray icon
+                        let decision = true;
+                        //@ts-ignore
+                        //console.log('player title', player.title, videoPlayers.includes(player.title.split(':').shift()));
+                        //@ts-ignore
+                        if (_value[1].playing && this.videoPlayers.includes(player.title.split(':').shift().toLowerCase())) {
+                            const options: Electron.MessageBoxOptions = {
+                                title: 'Pause?',
+                                message: 'Pause old player',
+                                buttons: ['No', 'Yes']
+                            };
+                            dialog.showMessageBox(options, (num) => {
+                                console.log('number clicked', num);
+                                //num == 0 --> no --> no pausing
+                                if (num === 0) decision = false;
+                                resolve(decision);
+                            });
+                        }
+                        if (_value[1] && _value[1].plObj !== player.plObj && decision)
+                            _value[1].plObj.pause();
+                        //_value[1] && _value[1].plObj !== player.plObj ? _value[1].plObj.pause() : 0;
+                    }
+                });
+            }
+            this.TouchbarItem = false;
+        });
     }
 
     //@ts-ignore
@@ -240,34 +269,6 @@ export class MediaKeyHandler {
         console.log('no player found');
     }
 
-    private pause(player: Player): void {
-        if (playersMap && playersMap.size > 1) {
-            playersMap.forEach((_value: [Date, Player], key: PlayerID) => {
-                if (key !== player.id) {
-                    //important for tray icon
-                    let decision = true;
-                    if (_value[1].playing) {
-                        const options: Electron.MessageBoxOptions = {
-                            title: 'Pause?',
-                            message: 'Pause old player',
-                            buttons: ['No', 'Yes']
-                        };
-                        dialog.showMessageBox(options, (num) => {
-                            console.log('number clicked', num);
-                            if (num === 0) {
-                                decision = false;
-                            }
-                        });
-                    }
-                    if (_value[1] && _value[1].plObj !== player.plObj && decision)
-                        _value[1].plObj.pause();
-                    //_value[1] && _value[1].plObj !== player.plObj ? _value[1].plObj.pause() : 0;
-                }
-            });
-        }
-        this.TouchbarItem = false;
-    }
-
     private appName(playerName: string): string {
         return utility.extractAppName(playerName);
     }
@@ -275,8 +276,9 @@ export class MediaKeyHandler {
     private setDefaultPlayer(): void {
         this.DefaultPlayer = this.Store.get('player');
         if (this.DefaultPlayer && !this.getPlayerObject(this.DefaultPlayer).IsPlaying) {
-            // tslint:disable-next-line:max-line-length
-            this.CurrentPlayer = { id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer) };
+            this.CurrentPlayer = {
+                id: this.DefaultPlayer, title: this.DefaultPlayer, playing: false, plObj: this.getPlayerObject(this.DefaultPlayer)
+            };
             setTimeout(() => {
                 this.updateMenuBar();
             }, 200);
@@ -318,7 +320,7 @@ export class MediaKeyHandler {
             if (!this.CurrentPlayer.playing) this.TouchbarItem = false;
         }
         utility.printMap('playerQuit ', playersMap);
-        console.log(_playerName);
+        //console.log(_playerName);
         this.updateMenuBar();
     }
     //Methods called from main.ts

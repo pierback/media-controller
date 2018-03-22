@@ -21,7 +21,7 @@ export class ItunesController {
     constructor() {
         this.lastActiveApp = 'com.apple.iTunes';
         this.IsRunning = Running.False;
-        this._isPlaying = false;
+        this.IsPlaying = false;
         this.playstate();
     }
 
@@ -64,6 +64,8 @@ export class ItunesController {
         let timeout: any;
 
         helperProcess.on('message', (res: any) => {
+            const validState = res.state != null;
+            const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
             if (timeout) clearTimeout(timeout);
             timeout = setTimeout(() => {
                 console.log('dauert zu lange itunes');
@@ -72,10 +74,10 @@ export class ItunesController {
             setTimeout(() => helperProcess.send(msg), 700);
             if (res === 'error' || res == null) { return; }
             if (res.running !== this.IsRunning && res.running != null) {
-                console.log('itunes ', res);
                 this.IsRunning = res.running;
                 this.onRunning.trigger(res.running);
-            } else if (res.state != null && (this.IsPlaying !== res.state || res.title !== this.Title)) {
+            } else if (stateChanged) {
+                console.log('stateChanged', stateChanged, 'res.state', res.state);
                 this.IsPlaying = res.state;
                 this.Title = res.title;
                 this.onPlay.trigger({ playing: res.state, title: res.title });

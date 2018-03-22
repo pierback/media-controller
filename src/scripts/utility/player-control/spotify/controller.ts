@@ -74,17 +74,19 @@ export class SpotifyController {
         let timeout: any;
 
         helperProcess.on('message', (res: any) => {
-            if (timeout) clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                console.log('dauert zu lange');
-                helperProcess.disconnect();
-            }, 10000);
+            const validState = res.state != null;
+            const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
+            /*   if (timeout) clearTimeout(timeout);
+              timeout = setTimeout(() => {
+                  console.log('dauert zu lange');
+                  helperProcess.disconnect();
+              }, 10000); */
             setTimeout(() => helperProcess.send(msg), 700);
             if (res === 'error' || res == null) return;
             if (res.running !== this.IsRunning && res.running != null) {
                 this.IsRunning = res.running;
                 this.onRunning.trigger(res.running);
-            } else if (res.state != null && (this.IsPlaying !== res.state || res.title !== this.Title)) {
+            } else if (stateChanged) {
                 this.IsPlaying = res.state;
                 this.Title = res.title;
                 this.onPlay.trigger({ playing: res.state, title: res.title });
@@ -127,6 +129,7 @@ export class SpotifyController {
         if (process.platform === 'darwin') {
             cmd = spotifyControlPathMac;
             utility.execCmd('osascript ' + spotifyControlPathMac + ' pause');
+            //this.IsPlaying = false;
         }
     }
 
@@ -136,6 +139,7 @@ export class SpotifyController {
         if (process.platform === 'darwin') {
             cmd = spotifyControlPathMac;
             utility.execCmd('osascript ' + spotifyControlPathMac + ' play');
+            //this.IsPlaying = true;
         }
     }
 

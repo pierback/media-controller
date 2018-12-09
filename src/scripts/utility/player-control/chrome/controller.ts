@@ -120,6 +120,7 @@ export class ChromeController {
             this.PlayingSites = tempMap;
         }
     }
+
     playstate() {
         const helperProcess: cp.ChildProcess = utility.fork();
         let msg = { bin: '', args: '' };

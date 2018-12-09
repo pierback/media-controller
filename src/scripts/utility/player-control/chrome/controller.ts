@@ -4,6 +4,7 @@ import { ChromeObj, ChromePlayer, Running } from './../../js/interfaces';
 import { utility } from './../../js/utility';
 import * as path from 'path';
 import * as cp from 'child_process';
+import { setTimeout } from 'timers';
 
 const chromeControlScptPath = path.join(__dirname, 'applescript', 'chromeControl.applescript');
 const chromePlStateScptPath = path.join('..', 'player-control', 'chrome', 'applescript', 'chromePlayState.applescript');
@@ -11,6 +12,19 @@ const frontmostAppScpt = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
 
 let playerMap: Map<number, [Date, ChromePlayer]> = new Map<number, [Date, ChromePlayer]>();
 
+const { chromePlayState } = require('../../rust');
+const { chromePlayState } = require('../../rust');
+
+function safelyParseJSON(json) {
+    let parsed;
+    try {
+        let dataStr = json.toString();
+        parsed = JSON.parse(dataStr);
+    } catch (e) {
+        parsed = { error: true };
+    }
+    return parsed;
+}
 export class ChromeController {
     protected _isRunning: Running;
     protected _isPlaying: boolean;
@@ -120,7 +134,8 @@ export class ChromeController {
             this.PlayingSites = tempMap;
         }
     }
-    playstate() {
+
+    playstate2() {
         const helperProcess: cp.ChildProcess = utility.fork();
         let msg = { bin: '', args: '' };
         if (process.platform == 'darwin') {
@@ -147,6 +162,37 @@ export class ChromeController {
             console.log('error');
             sendMsg();
         });
+    }
+
+    rustCmd() {
+        return new Promise((resolve, reject) => {
+            let out = chromePlayState();
+            let result = safelyParseJSON(out) as ChromeObj;
+            if (result.error) { return reject(); }
+
+            this.checkTabs(result);
+            this.IsRunning = utility.convertToRunningType(result.isRunning);
+            return resolve(result);
+        });
+    }
+
+    async playstate() {
+        this.rustCmd().
+            then((result) => {
+                let delay = 1000;
+                if (this.playerStateChanged(result)) {
+                    console.log('this.playerStateChanged(result)', this.playerStateChanged(result));
+                    this.onPlay.trigger(this.CurrentPlayer);
+                    delay = 2000;
+                }
+
+                setTimeout(() => {
+
+                    this.playstate();
+
+                }, delay);
+            })
+            .catch(this.playstate);
     }
 
     playerStateChanged(result: ChromeObj) {

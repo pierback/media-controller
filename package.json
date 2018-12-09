@@ -5,7 +5,7 @@
   "description": "My Electron application description",
   "main": "src/main/index.ts",
   "scripts": {
-    "start": "gulp && electron-forge start",
+    "start": "electron-forge start",
     "package": "gulp && electron-forge package",
     "make": "gulp && electron-forge make",
     "publish": "gulp && electron-forge publish",
@@ -57,22 +57,23 @@
   "devDependencies": {
     "@types/electron": "^1.4.30",
     "@types/electron-devtools-installer": "^2.0.2",
-    "electron-devtools-installer": "^2.0.1",
-    "electron-squirrel-startup": "^1.0.0",
-    "tslib": "^1.4.0",
+    "auto-import": "git+https://github.com/pierback/auto-import.git",
     "babel-plugin-transform-async-to-generator": "^6.24.1",
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
+    "electron": "1.7.9",
+    "electron-devtools-installer": "^2.0.1",
     "electron-forge": "^4.1.6",
+    "electron-packager": "^13.0.0",
+    "electron-prebuilt-compile": "1.8.2-beta.3",
+    "electron-squirrel-startup": "^1.0.0",
     "electron-webpack": "^1.11.0",
     "electron-webpack-ts": "^1.2.0",
-    "webpack": "^3.8.1",
-    "electron-prebuilt-compile": "1.8.2-beta.3",
-    "typescript": "~2.2.2",
-    "auto-import": "git+https://github.com/pierback/auto-import.git",
-    "electron": "1.7.9",
-    "run-sequence": "^2.1.0",
     "gulp": "^3.9.1",
-    "tslint": "^5.8.0"
+    "run-sequence": "^2.1.0",
+    "tslib": "^1.4.0",
+    "tslint": "^5.8.0",
+    "typescript": "~2.2.2",
+    "webpack": "^3.8.1"
   }
 }

@@ -8,7 +8,7 @@ import * as path from 'path';
 import * as cp from 'child_process';
 const spotifyControlPathMac = path.join(__dirname, 'applescript', 'spotifyControl.applescript');
 const frontmostAppScptMac = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
-
+const { spotifyPlayState } = require('../../rust');
 export class SpotifyController {
     protected _isRunning: Running;
     protected _isPlaying: boolean;
@@ -62,7 +62,7 @@ export class SpotifyController {
         this._event = evt;
     }
 
-    playstate() {
+    playstate2() {
         const helperProcess: cp.ChildProcess = utility.fork();
         let msg = { bin: '', args: '' };
         if (process.platform == 'darwin') {
@@ -104,6 +104,41 @@ export class SpotifyController {
             helperProcess.kill();
             setTimeout(this.playstate, 3000);
         });
+    }
+
+    rustCmd() {
+        return new Promise((resolve, reject) => {
+            let out = spotifyPlayState();
+            let res = safelyParseJSON(out);
+            if (res.error) { return reject(); }
+            return resolve(res);
+        });
+    }
+
+    async playstate() {
+        this.rustCmd().
+            then((res: any) => {
+                let delay = 700;
+                const validState = res.state != null;
+                const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
+
+                if (res === 'error' || res == null) return;
+                if (res.running !== this.IsRunning && res.running != null) {
+                    this.IsRunning = res.running;
+                    this.onRunning.trigger(res.running);
+                } else if (stateChanged) {
+                    this.IsPlaying = res.state;
+                    this.Title = res.title;
+                    this.onPlay.trigger({ playing: res.state, title: res.title });
+                }
+
+                setTimeout(() => {
+
+                    this.playstate();
+
+                }, delay);
+            })
+            .catch(this.playstate);
     }
 
     activate(activation: string = 'null') {
@@ -160,4 +195,16 @@ export class SpotifyController {
             utility.execCmd('osascript ' + spotifyControlPathMac + ' previous');
         }
     }
+}
+
+
+function safelyParseJSON(json) {
+    let parsed;
+    try {
+        let dataStr = json.toString();
+        parsed = JSON.parse(dataStr);
+    } catch (e) {
+        parsed = { error: true };
+    }
+    return parsed;
 }

@@ -70,7 +70,7 @@
     "electron-prebuilt-compile": "1.8.2-beta.3",
     "typescript": "~2.2.2",
     "auto-import": "git+https://github.com/pierback/auto-import.git",
-    "electron": "1.7.9",
+    "electron": ">=1.8.2-beta5",
     "run-sequence": "^2.1.0",
     "gulp": "^3.9.1",
     "tslint": "^5.8.0"

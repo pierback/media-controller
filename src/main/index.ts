@@ -4,8 +4,6 @@ import * as electron from 'electron';
 import { EventEmitter } from 'events';
 import { MediaKeyHandler } from '../scripts/mediaKeyHandler';
 import { Player } from '../scripts/utility/js/interfaces';
-const pusage = require('pidusage');
-const startUsage = process.cpuUsage();
 
 /* setInterval(function () {
   pusage.stat(process.pid, function (_err: any, stat: any) {

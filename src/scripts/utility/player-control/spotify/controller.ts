@@ -1,4 +1,5 @@
 //@ts-ignore
+import { app } from 'electron';
 import { LiteEvent, ILiteEvent } from './../../js/emitter';
 //@ts-ignore
 import { PlayerStateMessage, Running } from './../../js/interfaces';
@@ -7,8 +8,14 @@ import * as events from 'events';
 import * as path from 'path';
 import * as cp from 'child_process';
 const spotifyControlPathMac = path.join(__dirname, 'applescript', 'spotifyControl.applescript');
+const spotifyGetPlayStatePath = path.join(__dirname, 'applescript', 'spotifyGetPlayState.applescript');
 const frontmostAppScptMac = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
-const { spotifyPlayState } = require('../../rust');
+//@ts-ignore
+const { spotifyPlayState } = path.join(__dirname, '../../rust');
+
+const em = require('playstate-addon');
+const playcmd = new em.EventEmitter();
+
 export class SpotifyController {
     protected _isRunning: Running;
     protected _isPlaying: boolean;
@@ -23,7 +30,7 @@ export class SpotifyController {
     constructor() {
         this.lastActiveApp = 'com.spotify.client';
         this.IsRunning = Running.False;
-        this._isPlaying = false;
+        this.IsPlaying = false;
         this.playstate();
     }
 
@@ -116,29 +123,30 @@ export class SpotifyController {
     }
 
     async playstate() {
-        this.rustCmd().
-            then((res: any) => {
-                let delay = 700;
-                const validState = res.state != null;
-                const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
 
-                if (res === 'error' || res == null) return;
-                if (res.running !== this.IsRunning && res.running != null) {
-                    this.IsRunning = res.running;
-                    this.onRunning.trigger(res.running);
-                } else if (stateChanged) {
-                    this.IsPlaying = res.state;
-                    this.Title = res.title;
-                    this.onPlay.trigger({ playing: res.state, title: res.title });
-                }
+        playcmd.on('change', (data) => {
+            const res = utility.safelyParseJSON(data);
+            const validState = res.state != null;
+            const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
 
-                setTimeout(() => {
+            if (res === 'error' || res == null) return;
+            if (res.running !== this.IsRunning && res.running != null) {
+                this.IsRunning = res.running;
+                this.onRunning.trigger(res.running);
+            } else if (stateChanged) {
+                console.log('res: ', res);
+                this.IsPlaying = res.state;
+                this.Title = res.title;
+                this.onPlay.trigger({ playing: res.state, title: res.title });
+            }
+        });
 
-                    this.playstate();
+        playcmd.run(spotifyGetPlayStatePath);
 
-                }, delay);
-            })
-            .catch(this.playstate);
+        app.on('will-quit', () => {
+            console.log('stop: ');
+            playcmd.stop();
+        });
     }
 
     activate(activation: string = 'null') {
@@ -197,7 +205,7 @@ export class SpotifyController {
     }
 }
 
-
+//@ts-ignore
 function safelyParseJSON(json) {
     let parsed;
     try {

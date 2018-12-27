@@ -6,6 +6,7 @@ const exec = require('child_process').exec;
 import * as cp from 'child_process';
 import { Running } from './interfaces';
 import * as path from 'path';
+const spawnPath = path.join(__dirname, '/child.js');
 //@ts-ignore
 
 export module utility {
@@ -103,7 +104,6 @@ export module utility {
     }
 
     export function fork(): cp.ChildProcess {
-        const spawnPath = path.join(__dirname, '/child.js');
         const helperProcess: cp.ChildProcess = cp.fork(spawnPath);
         return helperProcess;
     }

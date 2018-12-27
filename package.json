@@ -51,8 +51,8 @@
   "dependencies": {
     "electron-compile": "^6.4.2",
     "electron-media-service": "^0.2.2",
-    "pidusage": "^1.2.0",
-    "sonos": "^0.22.2"
+    "playstate-addon": "git+https://github.com/pierback/playstate-addon.git",
+    "tslib": "^1.4.0"
   },
   "devDependencies": {
     "@types/electron": "^1.4.30",
@@ -61,19 +61,20 @@
     "babel-plugin-transform-async-to-generator": "^6.24.1",
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
-    "electron": "1.7.9",
+    "electron": "^4.0.0-beta.11",
     "electron-devtools-installer": "^2.0.1",
     "electron-forge": "^4.1.6",
     "electron-packager": "^13.0.0",
     "electron-prebuilt-compile": "1.8.2-beta.3",
+    "electron-rebuild": "^1.8.2",
     "electron-squirrel-startup": "^1.0.0",
     "electron-webpack": "^1.11.0",
     "electron-webpack-ts": "^1.2.0",
     "gulp": "^3.9.1",
     "run-sequence": "^2.1.0",
-    "tslib": "^1.4.0",
+    "ts-node": "^7.0.1",
     "tslint": "^5.8.0",
-    "typescript": "~2.2.2",
+    "typescript": "^2.2.2",
     "webpack": "^3.8.1"
   }
 }

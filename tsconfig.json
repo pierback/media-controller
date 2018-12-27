@@ -4,24 +4,31 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "declaration": false,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
     "suppressImplicitAnyIndexErrors": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": true,
-    "noImplicitThis": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noImplicitThis": false,
+    "noUnusedParameters": false,
     "importHelpers": true,
     "noEmitHelpers": true,
     "module": "commonjs",
     "pretty": true,
     "jsx": "react",
+    "strictNullChecks": false,
     "moduleResolution": "node",
-    "outDir": "/dist/out-tsc",
-    "target": "es6"
+    "target": "es6",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
   },
   "formatCodeOptions": {
     "indentSize": 2,
     "tabSize": 2
-  }
+  },
+  "include": [
+    "src/**/*"
+  ]
 }

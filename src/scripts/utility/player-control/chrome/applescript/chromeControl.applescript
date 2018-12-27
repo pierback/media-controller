@@ -5,8 +5,8 @@ on handlerTab(argv)
 		set json_path to file "json.scpt" of folder of (path to me)
 	end tell
 	set json to load script (json_path as alias)
-	if get running of application "Google Chrome" is true then
-		tell application "Google Chrome"
+	if get running of application "Brave Browser" is true then
+		tell application "Brave Browser"
 			set activeTab to active tab of first window
 			tell activeTab to set activeTabUrl to URL
 			
@@ -27,7 +27,7 @@ end handlerTab
 
 on spotifyHandler(actionTab, playerAction, hturl, aturl)
 	if get running of application "Spotify" is false then
-		tell application "Google Chrome"
+		tell application "Brave Browser"
 			if hturl is in aturl then
 				if playerAction is "play" then
 					execute actionTab javascript "document.querySelector('.spoticon-play-16').click()"
@@ -50,7 +50,7 @@ end spotifyHandler
 
 
 on beattvHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelector('.playbutton.btn').click()"
@@ -72,7 +72,7 @@ end beattvHandler
 
 
 on facebookHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelector('video').play()"
@@ -90,7 +90,7 @@ end facebookHandler
 
 
 on skygoHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				set playing to execute actionTab javascript "document.querySelector('.overlay-ready-to-play-sd')"
@@ -117,7 +117,7 @@ end skygoHandler
 
 
 on beatportHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelector('.play-button.play').click()"
@@ -139,7 +139,7 @@ end beatportHandler
 
 
 on netflixHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				--execute actionTab javascript "document.querySelectorAll('.play')[0].click()"
@@ -165,7 +165,7 @@ end netflixHandler
 
 
 on daznHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelector('video').play()"
@@ -189,7 +189,7 @@ end daznHandler
 
 
 on youtubeHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelector('video').play()"
@@ -210,7 +210,7 @@ on youtubeHandler(actionTab, playerAction, hturl, aturl)
 end youtubeHandler
 
 on soundcloudHandler(actionTab, playerAction, hturl, aturl)
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		if hturl is in aturl then
 			if playerAction is "play" then
 				execute actionTab javascript "document.querySelectorAll('.playControl')[0].click()"
@@ -238,7 +238,7 @@ on tabDetection(handleTabUrl, tabId, action)
 	set activeTabUrl to ""
 	set actUrl to ""
 	
-	tell application "Google Chrome"
+	tell application "Brave Browser"
 		set activeTab to active tab of window 1
 		tell activeTab to set activeTabUrl to URL
 		

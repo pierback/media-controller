@@ -76,7 +76,7 @@ export class SpotifyStateHandler implements HandlerInterface {
         //@ts-ignore
         spotify.Running.on((isRunning: boolean) => {
             this.IsRunning = utility.convertToRunningType(isRunning);
-            if (!isRunning) this.Event.emit('running', { id: this.Name, running: isRunning });
+            if (!this.IsRunning) this.Event.emit('running', { id: this.Name, running: isRunning });
         });
     }
 

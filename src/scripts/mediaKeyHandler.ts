@@ -5,9 +5,9 @@ import { Store } from './utility/js/store';
 import { Player, PlayerID } from './utility/js/interfaces';
 import { app, globalShortcut, ipcMain as ipc, dialog, Notification } from 'electron';
 //@ts-ignore
-import * as MediaService from 'electron-media-service';
+// import * as MediaService from 'electron-media-service';
 import { extHandlers } from './index';
-const myService = new MediaService();
+// const myService = new MediaService();
 const handlerListener = new EventEmitter();
 
 let handlers: Array<any> = [];
@@ -25,7 +25,7 @@ export class MediaKeyHandler {
     }
 
     set TouchbarItem(playing: boolean | undefined) {
-        if (playing) {
+        /* if (playing) {
             myService.setMetaData({
                 state: 'playing'
             });
@@ -33,7 +33,7 @@ export class MediaKeyHandler {
             myService.setMetaData({
                 state: 'pause'
             });
-        }
+        } */
     }
 
     set Event(evt: EventEmitter) {
@@ -133,7 +133,7 @@ export class MediaKeyHandler {
 
     private init(): void {
         this.Store = '';
-        myService.startService();
+        // myService.startService();
         app.on('ready', () => {
             this.listenerIni();
             this.keyListenerIni();
@@ -166,12 +166,13 @@ export class MediaKeyHandler {
     private listenerIni(): void {
         handlerListener.setMaxListeners(150);
         handlerListener.on('playing', (message: Player) => {
+            console.log('message: ', message);
             let tempPlayer = { id: message.id, title: message.title, playing: message.playing, plObj: message.plObj };
             const ignorePauseEvent = message.playing === false && this.CurrentPlayer.playing && message.id !== this.CurrentPlayer.id;
             //ignorePauseEvent && console.log('player event', message.id, message.playing, );
-            if (!ignorePauseEvent)
+            if (!ignorePauseEvent) {
                 this.setPlayers(tempPlayer);
-
+            }
         });
 
         handlerListener.on('running', (message: any) => {
@@ -180,19 +181,16 @@ export class MediaKeyHandler {
             }
         });
 
-        for (let h of extHandlers) {
-            handlers.push(new h(handlerListener));
-        }
-
-        for (let h of handlers) {
-            h.init();
-        }
+        extHandlers.forEach(h => {
+            const _hl = new h(handlerListener);
+            handlers.push(_hl);
+            _hl.init();
+        });
     }
     videoPlayers: String[] = ['skygo', 'dazn', 'youtube'];
 
     private async setPlayers(player: Player, plAct?: boolean) {
         if (player.id.includes('none')) return;
-
 
         const activatePlayer = plAct;
         const newPlayer = this.CurrentPlayer.id !== player.id && player.playing;
@@ -204,6 +202,7 @@ export class MediaKeyHandler {
             this.CurrentPlayer = { id: player.id, title: player.title, playing: player.playing, plObj: player.plObj };
 
             if (player.playing && newPlayer) {
+                //@ts-ignore
                 if (!this.videoPlayers.includes(oldPlayer.title.split(':').shift().toLowerCase()))
                     this.pause(player).then((newPlayer) => {
                         if (!newPlayer) {

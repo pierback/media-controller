@@ -1,4 +1,3 @@
-//@ts-check
 'use strict';
 const { exec, spawn } = require('child_process');
 const path = require('path');

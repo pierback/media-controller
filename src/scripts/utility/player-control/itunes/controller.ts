@@ -1,3 +1,4 @@
+import { app } from 'electron';
 //@ts-ignore
 import { LiteEvent, ILiteEvent } from './../../js/emitter';
 //@ts-ignore
@@ -6,7 +7,10 @@ import { utility } from './../../js/utility';
 import * as path from 'path';
 import * as cp from 'child_process';
 const itunesControlPathMac = path.join(__dirname, 'applescript', 'itunesControl.applescript');
+const itunesPlaystatePathMac = path.join(__dirname, 'applescript', 'itunesGetPlayState.applescript');
 const frontmostAppScptMac = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
+const em = require('playstate-addon');
+const playcmd = new em.EventEmitter();
 
 export class ItunesController {
     protected _isRunning: Running;
@@ -52,7 +56,7 @@ export class ItunesController {
         this._isRunning = val;
     }
 
-    playstate() {
+    playstate2() {
         const helperProcess: cp.ChildProcess = utility.fork();
         let msg = { bin: '', args: '' };
         if (process.platform == 'darwin') {
@@ -94,6 +98,32 @@ export class ItunesController {
             helperProcess.unref();
             helperProcess.kill();
             setTimeout(this.playstate, 3000);
+        });
+    }
+
+    async playstate() {
+        playcmd.on('change', (data) => {
+            const res = utility.safelyParseJSON(data);
+            const validState = res.state != null;
+            const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
+
+            if (res === 'error' || res == null) return;
+            if (res.running !== this.IsRunning && res.running != null) {
+                this.IsRunning = res.running;
+                this.onRunning.trigger(res.running);
+            } else if (stateChanged) {
+                console.log('res: ', res);
+                this.IsPlaying = res.state;
+                this.Title = res.title;
+                this.onPlay.trigger({ playing: res.state, title: res.title });
+            }
+        });
+
+        // playcmd.run(itunesPlaystatePathMac);
+
+        app.on('will-quit', () => {
+            console.log('stop: ');
+            playcmd.stop();
         });
     }
 

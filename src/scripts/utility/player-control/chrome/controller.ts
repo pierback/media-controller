@@ -1,20 +1,23 @@
 //@ts-ignore
+import { app } from 'electron';
 import { LiteEvent, ILiteEvent } from './../../js/emitter';
 import { ChromeObj, ChromePlayer, Running } from './../../js/interfaces';
 import { utility } from './../../js/utility';
 import * as path from 'path';
 import * as cp from 'child_process';
-import { setTimeout } from 'timers';
 
 const chromeControlScptPath = path.join(__dirname, 'applescript', 'chromeControl.applescript');
-const chromePlStateScptPath = path.join('..', 'player-control', 'chrome', 'applescript', 'chromePlayState.applescript');
+const chromePlStateScptPath = path.join(__dirname, 'applescript', 'chromePlayState.applescript');
 const frontmostAppScpt = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
 
 let playerMap: Map<number, [Date, ChromePlayer]> = new Map<number, [Date, ChromePlayer]>();
 
-const { chromePlayState } = require('../../rust');
-const { chromePlayState } = require('../../rust');
+// const { chromePlayState } = require('../../rust');
 
+const em = require('playstate-addon');
+const playcmd = new em.EventEmitter();
+
+//@ts-ignore
 function safelyParseJSON(json) {
     let parsed;
     try {
@@ -135,64 +138,20 @@ export class ChromeController {
         }
     }
 
-    playstate2() {
-        const helperProcess: cp.ChildProcess = utility.fork();
-        let msg = { bin: '', args: '' };
-        if (process.platform == 'darwin') {
-            msg.bin = 'osascript';
-            msg.args = chromePlStateScptPath;
-        } else { this.onRunning.trigger({ running: false }); return; }
-        let timeout: any;
-        helperProcess.send(msg);
-        helperProcess.on('message', (result: ChromeObj) => {
-
-            if (timeout) clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                console.log('Chrome dauert zu lange');
-                helperProcess.disconnect();
-            }, 10000);
+    playstate() {
+        playcmd.on('change', (data) => {
+            let result = safelyParseJSON(data) as ChromeObj;
             this.checkTabs(result);
-            sendMsg();
             this.IsRunning = utility.convertToRunningType(result.isRunning);
             this.playerStateChanged(result) && this.onPlay.trigger(this.CurrentPlayer);
         });
 
-        const sendMsg = () => setTimeout(() => helperProcess.send(msg), 500);
-        helperProcess.on('error', (_err: any) => {
-            console.log('error');
-            sendMsg();
+        // playcmd.run(chromePlStateScptPath);
+
+        app.on('will-quit', () => {
+            console.log('stop: ');
+            playcmd.stop();
         });
-    }
-
-    rustCmd() {
-        return new Promise((resolve, reject) => {
-            let out = chromePlayState();
-            let result = safelyParseJSON(out) as ChromeObj;
-            if (result.error) { return reject(); }
-
-            this.checkTabs(result);
-            this.IsRunning = utility.convertToRunningType(result.isRunning);
-            return resolve(result);
-        });
-    }
-
-    async playstate() {
-        this.rustCmd().
-            then((result) => {
-                let delay = 1000;
-                if (this.playerStateChanged(result)) {
-                    console.log('this.playerStateChanged(result)', this.playerStateChanged(result));
-                    this.onPlay.trigger(this.CurrentPlayer);
-                    delay = 2000;
-                }
-
-                setTimeout(() => {
-
-                    this.playstate();
-
-                }, delay);
-            })
-            .catch(this.playstate);
     }
 
     playerStateChanged(result: ChromeObj) {

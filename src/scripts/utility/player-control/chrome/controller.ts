@@ -12,22 +12,9 @@ const frontmostAppScpt = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
 
 let playerMap: Map<number, [Date, ChromePlayer]> = new Map<number, [Date, ChromePlayer]>();
 
-// const { chromePlayState } = require('../../rust');
-
 const em = require('playstate-addon');
 const playcmd = new em.EventEmitter();
 
-//@ts-ignore
-function safelyParseJSON(json) {
-    let parsed;
-    try {
-        let dataStr = json.toString();
-        parsed = JSON.parse(dataStr);
-    } catch (e) {
-        parsed = { error: true };
-    }
-    return parsed;
-}
 export class ChromeController {
     protected _isRunning: Running;
     protected _isPlaying: boolean;
@@ -140,13 +127,13 @@ export class ChromeController {
 
     playstate() {
         playcmd.on('change', (data) => {
-            let result = safelyParseJSON(data) as ChromeObj;
+            let result = utility.safelyParseJSON(data) as ChromeObj;
             this.checkTabs(result);
             this.IsRunning = utility.convertToRunningType(result.isRunning);
             this.playerStateChanged(result) && this.onPlay.trigger(this.CurrentPlayer);
         });
 
-        // playcmd.run(chromePlStateScptPath);
+        playcmd.run(chromePlStateScptPath);
 
         app.on('will-quit', () => {
             console.log('stop: ');

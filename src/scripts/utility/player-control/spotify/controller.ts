@@ -10,9 +10,6 @@ import * as cp from 'child_process';
 const spotifyControlPathMac = path.join(__dirname, 'applescript', 'spotifyControl.applescript');
 const spotifyGetPlayStatePath = path.join(__dirname, 'applescript', 'spotifyGetPlayState.applescript');
 const frontmostAppScptMac = path.join(__dirname, '..', '..', 'cmd', 'activateApp');
-//@ts-ignore
-const { spotifyPlayState } = path.join(__dirname, '../../rust');
-
 const em = require('playstate-addon');
 const playcmd = new em.EventEmitter();
 
@@ -69,61 +66,7 @@ export class SpotifyController {
         this._event = evt;
     }
 
-    playstate2() {
-        const helperProcess: cp.ChildProcess = utility.fork();
-        let msg = { bin: '', args: '' };
-        if (process.platform == 'darwin') {
-            msg.bin = 'osascript';
-            msg.args = path.join('..', 'player-control', 'spotify', 'applescript', 'spotifyGetPlayState.applescript');
-        }
-        if (!msg.bin) { this.onPlay.trigger(false); return; }
-        helperProcess.send(msg);
-        let timeout: any;
-
-        helperProcess.on('message', (res: any) => {
-            const validState = res.state != null;
-            const stateChanged = validState && this.IsPlaying !== res.state /* || res.title !== this.Title */;
-            /*   if (timeout) clearTimeout(timeout);
-              timeout = setTimeout(() => {
-                  console.log('dauert zu lange');
-                  helperProcess.disconnect();
-              }, 10000); */
-            setTimeout(() => helperProcess.send(msg), 700);
-            if (res === 'error' || res == null) return;
-            if (res.running !== this.IsRunning && res.running != null) {
-                this.IsRunning = res.running;
-                this.onRunning.trigger(res.running);
-            } else if (stateChanged) {
-                this.IsPlaying = res.state;
-                this.Title = res.title;
-                this.onPlay.trigger({ playing: res.state, title: res.title });
-            }
-        });
-
-        helperProcess.on('error', (_err: any) => {
-            console.log('error spotify helper', _err);
-            helperProcess.disconnect();
-        });
-
-        helperProcess.on('disconnect', (_err: any) => {
-            console.log('RESTART spotify helper', _err);
-            helperProcess.unref();
-            helperProcess.kill();
-            setTimeout(this.playstate, 3000);
-        });
-    }
-
-    rustCmd() {
-        return new Promise((resolve, reject) => {
-            let out = spotifyPlayState();
-            let res = safelyParseJSON(out);
-            if (res.error) { return reject(); }
-            return resolve(res);
-        });
-    }
-
     async playstate() {
-
         playcmd.on('change', (data) => {
             const res = utility.safelyParseJSON(data);
             const validState = res.state != null;
